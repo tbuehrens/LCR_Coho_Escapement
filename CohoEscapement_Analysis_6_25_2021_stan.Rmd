@@ -1,0 +1,1970 @@
+---
+title: Coho Escapement Analysis
+author: Thomas Buehrens 
+output:
+  html_document:
+    fig_caption: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+***
+
+This document was generated on `r format(Sys.time(), '%m/%d/%Y')`.
+
+***
+
+
+```{r set_options, echo = FALSE, message = FALSE}
+options(width = 100)
+knitr::opts_chunk$set(message = FALSE)
+set.seed(123)
+```
+
+# Purpose
+Coho salmon Escapement Estimation for Washington State portion of Lower Columbia ESU
+
+
+# Requirements
+All analyses require R software [**(link)**](https://cran.r-project.org/) (v3.4.3) for data retrieval, data processing, and summarizing model results, and Stan software [**(link)**](https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started/) for Hamiltonian Monte Carlo (HMC) simulation.  
+
+
+# Functions
+We also need a couple of helper functions which we will load from the functions folder, which we will load using the walk() function from the purrr package (which we will install if it is not already installed).
+```{r load_funcs, results = "hide",echo = FALSE, message = FALSE, warning = FALSE}
+wd_functions<-"functions"
+sapply(FUN = source, paste(wd_functions, list.files(wd_functions), sep="/"))
+```
+
+# Packages
+In addition to purr, We also need a few packages that are not included with the base installation of R, so we begin by installing them (only if necessary) and then loading them.
+```{r load_pkgs1, message = FALSE, warning = FALSE,results = "hide"}
+packages_list<-c(
+  "RODBC",
+  "reshape",
+  "R2jags",
+  "rstan",
+  "tidyverse",
+  "ggplot2",
+  "dplyr",
+  "janitor",
+  "scales",
+  "gridExtra"
+)
+install_or_load_pack(pack = packages_list)
+```
+
+# User Inputs
+Here we will specify file names, directories, and make some choices regarding the processing of data and the analysis
+```{r user inputs, message = FALSE, warning = FALSE,results = "hide"}
+#directories
+#home.dir<-getwd()
+#csv.data.dir<-"final data"
+#data.dir<-"final data"
+#db.dir<-"final data"
+#results.dir<-"results"
+#code.dir<-"scripts"
+#models.dir<-"models"
+home.dir<-getwd()
+csv.data.dir<-"final data"
+data.dir<-"final data"
+db.dir<-"final data"
+results.dir<-"results"
+code.dir<-"scripts"
+models.dir<-"models"
+
+
+
+#datasets
+#accdb.name<-"TWS_Analysis_Only_v9.1.accdb"
+# traphauldata.name<-"TH_dat_04022020_w_nflewisabvdam.csv"
+# frame_file.name<-"Coho_frames_07.19.2020.csv"
+# RpF_file.name<-"Coho_RpF_04.08.2020.csv"
+# IMWdata.name<-"IMW_redds_02.14.2020.csv"
+# IMWdata_v2.name<-"IMW_redds_06_25_2021_V2.csv"
+accdb.name<-"TWS_Analysis_Only_v9.2.accdb"
+traphauldata.name<-"TH_dat_06_29_21_w_nflewisabvdam.csv"
+frame_file.name<-"Coho_frames_07.19.2020.csv"
+RpF_file.name<-"Coho_RpF_04.14.2021.csv"
+IMWdata.name<-"IMW_redds_01.27.2021.csv"
+IMWdata_v2.name<-"IMW_redds_06_25_2021_V2.csv"
+
+
+# set data summarization params
+years=c(2010:2020)
+GRTSdat.date<-"2021-06-29"
+assume_Del_Ost_census<-TRUE
+UpdateGRTSdata<-FALSE
+WriteGRTSdata<-FALSE
+
+#model files
+model.file<-"CohoEscapement_Model_6_23_2021.jags"
+stan_model.file<-"CohoEscapement_Model_6_25_2021.stan"
+
+#model fitting
+fit_JAGS = FALSE
+fit_Stan = FALSE 
+
+#HMC params (only applies to stan model; you need to manually tweak for JAGS in Jagsfit function)
+chains=4
+thin=1
+burn=100
+iter=200
+control = list(adapt_delta = 0.95)
+```
+
+# Load & Combine Data for Old JAGs Model
+
+Inputs include
+1. RpF
+2. Trap and Haul (with CRC data)
+3. Coho Frames
+4. IMW redds
+5. The TWS database
+6. In the results summary, "TRT_Population_Goals.csv" is also used. 
+7. year-specific functions that generate csv files of 2010 and 2011 data since those years are not in TWS
+
+The code:
+1. generates 2010 and 2011 formatted summarized GRTS and Index survey data in csv form and puts them in a folder of "GRTSdat".
+2. it then queries TWS and generates identically formated csv files from TWS for years after 2011 and puts them in the same folder.
+3. It then call in the rest of the data from the files listed above and formats the data for the JAGS model.
+4. Re-summarizing the data for the Stan model occurs below AFTER the JAGS model run section.
+```{r data prep, message = FALSE, warning = FALSE,results = "hide"}
+#====================================
+#Load Population List & Frame Mileage
+#====================================
+GRTSpops<-data.frame(read_csv(file.path(csv.data.dir,frame_file.name)))
+#=====================================
+#Query and Organize GRTS Data from TWS
+#=====================================
+if(UpdateGRTSdata==TRUE){
+  if(2010 %in% years){
+    GRTSdataprep2010(data.dir=data.dir,frame_file.name=frame_file.name)
+  }
+  if(2011 %in% years){
+    GRTSdataprep2011(data.dir=data.dir,frame_file.name=frame_file.name)
+  }
+  GRTSdat<-GRTSdataprep(GRTSpops=GRTSpops,data.dir=data.dir,db.dir=db.dir,accdb.name = accdb.name,years=years[!years%in%c(2010:2011)], write=WriteGRTSdata)
+}
+#========================
+#Load GRTS Data from CSVs
+#========================
+# GRTS_files.dir<-file.path(csv.data.dir,paste0("GRTSdata_",GRTSdat.date))
+# files<-list.files(path=GRTS_files.dir)
+# GRTS_files<-files[grep("GRTSdat",files)]
+# GRTSdat<- do.call("rbind",lapply(GRTS_files,FUN=function(files){read_csv(paste(GRTS_files.dir,"/",files,sep=""))}))
+#========================================
+#Prepare GRTS data for Analysis
+#========================================
+years=years
+yrs<-length(years)
+pops<-rep(dim(GRTSpops)[1],yrs)
+pops_sites<-matrix(NA,pops[1],yrs)
+pops_sites2<-matrix(NA,pops[1],yrs)
+p_index<-matrix(NA,pops[1],yrs)
+unk_p_index<-matrix(NA,pops[1],yrs)
+sites<-matrix(NA,pops[1],yrs)
+Y2<-matrix(NA,pops[1],yrs)
+Y<-matrix(NA,pops[1],yrs)
+mis_miles<-matrix(NA,pops[1],yrs)
+GRTS_miles<-matrix(NA,pops[1],yrs)
+I_miles<-matrix(NA,pops[1],yrs)
+F_miles<-matrix(NA,pops[1],yrs)
+Fm<-matrix(NA,pops[1],yrs)
+AS<-matrix(NA,pops[1],yrs)
+H<-matrix(NA,pops[1],yrs)
+MS<-matrix(NA,pops[1],yrs)
+Oc<-matrix(NA,pops[1],yrs)
+y<-array(NA,dim=c(pops[1],50,yrs))
+g<-array(NA,dim=c(pops[1],50,yrs))
+#RpF
+NON_TWS_redds<-matrix(NA,pops[1],yrs)
+n1<-matrix(NA,pops[1],yrs)
+n2<-matrix(NA,pops[1],yrs)
+m<-matrix(NA,pops[1],yrs)
+good_MR_data<-matrix(NA,pops[1],yrs)
+Nb_lim<-matrix(NA,pops[1],yrs)
+no_MR_data<-matrix(NA,pops[1],yrs)
+#Trap and Haul
+log_catch_a_M_mu = matrix(0,pops[1],yrs)
+catch_a_M_SD =  matrix(0,pops[1],yrs)
+log_catch_j_M_mu = matrix(0,pops[1],yrs)
+catch_j_M_SD = matrix(0,pops[1],yrs)
+TH_a_M = matrix(0,pops[1],yrs)
+TH_j_M = matrix(0,pops[1],yrs)
+TH_a_UM = matrix(0,pops[1],yrs)
+TH_j_UM = matrix(0,pops[1],yrs)
+TH_adult_marked_female = matrix(0,pops[1],yrs)
+TH_adult_unmarked_female = matrix(0,pops[1],yrs)
+#IMW data
+sch=array(NA,dim=c(pops[1],10,yrs))
+IMW_redd_tot = matrix(0,pops[1],yrs)
+IMW_miles = matrix(0,pops[1],yrs)
+good_sch_index = matrix(0,pops[1],yrs)
+good_sch=array(NA,dim=c(pops[1],10,yrs))
+sch_years<-c(NULL)
+GRTSdat<-NULL
+IMWdat<-NULL
+THdat<-NULL
+for(i in 1:yrs){
+  print(years[i])
+  #load GRTS data
+  GRTSdat_filename<-paste0(csv.data.dir,"\\GRTSdata_",GRTSdat.date,"\\",years[i],"GRTSdat_",GRTSdat.date,".csv")
+  GRTSdat<-data.frame(read.csv(GRTSdat_filename))
+  GRTSdat<-GRTSdat[order(as.numeric(as.character(GRTSdat$Order))),]
+  temp<-paste("y",1:50,sep=".")
+  y[,,i]=as.matrix(GRTSdat[colnames(GRTSdat)%in%temp])
+  rownames(y)<-GRTSdat$GRTS_Population
+  temp3<-paste("g",1:50,sep=".")
+  g[,,i]=as.matrix(GRTSdat[colnames(GRTSdat)%in%temp3])
+  rownames(g)<-GRTSdat$GRTS_Population
+  #load RpF data
+  RpF<-NULL
+  RpF<-data.frame(read.csv(paste(csv.data.dir,"\\",RpF_file.name,sep="")))
+  RpF<-RpF[RpF$Year==years[i] & RpF$GRTS_Population%in%GRTSdat$GRTS_Population,]
+  GRTSdat<-merge(RpF[,!colnames(RpF)%in%c("comments")],GRTSdat[!colnames(GRTSdat)%in%temp],all=T)
+  GRTSdat[is.na(GRTSdat)]<-0
+  #load Trap and Hauldata
+  THdat<-NULL
+  THdat<-data.frame(read.csv(paste(csv.data.dir,"\\",traphauldata.name,sep="")))
+  THdat<-THdat[THdat$Year==years[i],]
+  GRTSdat<-merge(GRTSdat,THdat[,!colnames(THdat)%in%c("comments")],all=T)
+  GRTSdat<-GRTSdat[order(as.numeric(as.character(GRTSdat$Order))),]
+  #load IMW redd data
+  IMWdat<-NULL
+  IMWdat<-data.frame(read.csv(paste(csv.data.dir,"\\",IMWdata.name,sep="")))
+  IMWdat<-IMWdat[IMWdat$Year==years[i],]
+  GRTSdat<-merge(GRTSdat,IMWdat,all=T)
+  GRTSdat$IMW_miles[is.na(GRTSdat$IMW_miles)]<-0
+  GRTSdat<-GRTSdat[order(as.numeric(as.character(GRTSdat$Order))),]
+  #CREATE dataframes for JAGS
+  #GRTS
+  print(GRTSdat$sites)
+  sites[,i]<-GRTSdat$sites
+  Y2[,i]=GRTSdat$Y2
+  Y[,i]=GRTSdat$Y
+  mis_miles[,i]=GRTSdat$mis_miles-as.numeric(as.character(GRTSdat$NON_TWS_redd_miles))-GRTSdat$IMW_miles
+  #===========================================
+  #make assumption about census in Del and Ost
+  #===========================================
+  if(assume_Del_Ost_census==T){
+    if(years[i]%in%c(2014:2018)){
+      mis_miles[GRTSpops$GRTS_Population%in%c("Delameter_Above Weir","Ostrander_Above Weir"),i]<-0
+    }
+    if(years[i]%in%c(2010:2013)){
+      #remove mileage above culvert on ostrander, remove mileage above Monahan falls and tiny no fish tribs on upper delameter
+      mis_miles[GRTSpops$GRTS_Population%in%c("Delameter_Above Weir","Ostrander_Above Weir"),i]<-mis_miles[GRTSpops$GRTS_Population%in%c("Delameter_Above Weir","Ostrander_Above Weir"),i] - c(4.31,7.84)     }
+    
+  }
+  #============================================
+  F_miles[,i]=GRTSdat$F_miles
+  GRTS_miles[,i]=GRTSdat$GRTS_miles
+  I_miles[,i]=GRTSdat$I_miles+as.numeric(as.character(GRTSdat$NON_TWS_redd_miles))+GRTSdat$IMW_miles
+  #females/AS use index plus GRTS 
+  Fm[,i]=GRTSdat$Fm+GRTSdat$I.Fm
+  AS[,i]=GRTSdat$AS+GRTSdat$I.AS
+  #use max of SGS or weir counts where weirs don't appear to be selective for sex
+  nonselectiveweirs<-c("Abernathy_Above AFTC","Abernathy","Germany","Mill","Duncan_Above Weir")
+  Fm[GRTSdat$GRTS_Population%in%nonselectiveweirs,i] =pmax(Fm[GRTSdat$GRTS_Population%in%nonselectiveweirs,i],GRTSdat$F_weir[GRTSdat$GRTS_Population%in%nonselectiveweirs])
+  AS[GRTSdat$GRTS_Population%in%nonselectiveweirs,i] =pmax(AS[GRTSdat$GRTS_Population%in%nonselectiveweirs,i],GRTSdat$A_weir[GRTSdat$GRTS_Population%in%nonselectiveweirs])
+  #for H and AS use max of grts or weir
+  H[,i]=pmax(GRTSdat$H,GRTSdat$H_weir)
+  MS[,i]=pmax(GRTSdat$MS,GRTSdat$MS_weir)
+  #except supplement with index data where census SGS occurred
+  H[mis_miles[,i]==0,i]=pmax(H[mis_miles[,i]==0,i],GRTSdat$H[mis_miles[,i]==0]+GRTSdat$I.H[mis_miles[,i]==0])
+  MS[mis_miles[,i]==0,i]=pmax(MS[mis_miles[,i]==0,i],GRTSdat$MS[mis_miles[,i]==0]+GRTSdat$I.MS[mis_miles[,i]==0])
+  #oc = oc
+  Oc[,i]=GRTSdat$OC
+  #RpF
+  NON_TWS_redds[,i]=GRTSdat$NON_TWS_redds
+  n1[,i]=GRTSdat$n1
+  n2[,i]=GRTSdat$n2
+  m[,i]=GRTSdat$m
+  #Create MR, GRTS, and Index Indices for loops,
+  for(j in 1:pops[1]){
+    #GRTS
+    if(sites[j,i]>0 & mis_miles[j,i]>0){
+      pops_sites[j,i]<-GRTSdat$Order[j]
+    }
+    #Index
+    if(I_miles[j,i]>0){
+      pops_sites2[j,i]<-GRTSdat$Order[j]
+    }
+    #Index census and NO GRTS, or GRTS and no Index
+    if(I_miles[j,i]>0 & sites[j,i]==0 & mis_miles[j,i]==0){
+      p_index[j,i]<-1
+    }
+    if(I_miles[j,i]==0 & sites[j,i]>0){
+      p_index[j,i]<-0
+    }
+    #unknown p_index
+    if(is.na(p_index[j,i])){
+      unk_p_index[j,i]<-GRTSdat$Order[j]
+    }
+    #MR
+    if(GRTSdat$good_MR_data[j]==1){
+      good_MR_data[j,i]<-GRTSdat$Order[j]
+    }
+  }
+  good_MR_data[,i]<-good_MR_data[,i][order(good_MR_data[,i])]
+  Nb_lim[,i]=pmax(AS[,i],MS[,i])
+  pops_sites[,i]<-pops_sites[,i][order(pops_sites[,i])]
+  pops_sites2[,i]<-pops_sites2[,i][order(pops_sites2[,i])]
+  unk_p_index[,i]<-unk_p_index[,i][order(unk_p_index[,i])]
+  no_MR_data[,i]<-GRTSdat$Order
+  no_MR_data[,i][no_MR_data[,i]%in%good_MR_data[,i]]<-NA
+  no_MR_data[,i]<-no_MR_data[,i][order(no_MR_data[,i])]
+  #Trap and Haul
+  log_catch_a_M_mu[,i] = log(GRTSdat$catch_adult_marked_mu)
+  catch_a_M_SD[,i] =  sqrt(GRTSdat$catch_adult_marked_var)/(GRTSdat$catch_adult_marked_mu)
+  log_catch_j_M_mu[,i] = log(GRTSdat$catch_jack_marked_mu)
+  catch_j_M_SD[,i] = sqrt(GRTSdat$catch_jack_marked_var)/(GRTSdat$catch_jack_marked_mu)
+  TH_a_M[,i] = GRTSdat$TH_adult_marked
+  TH_j_M[,i] = GRTSdat$TH_jack_marked
+  TH_a_UM[,i] = GRTSdat$TH_adult_unmarked
+  TH_j_UM[,i] = GRTSdat$TH_jack_unmarked
+  #IMW redds
+  temp2<-paste("sch",1:10,sep="")
+  sch[,,i] = as.matrix(GRTSdat[colnames(GRTSdat)%in%temp2])
+  rownames(sch)<-GRTSdat$GRTS_Population
+  IMW_redd_tot[,i] = GRTSdat$IMW_redd_tot
+  IMW_miles[,i] = GRTSdat$IMW_miles
+  #Create indices for survey schedule counts
+  good_sch_index[,i] = apply(sch[,,i],1,function(x) length(which(!is.na(x))))
+  if(sum(good_sch_index[,i]>0)){sch_years<-c(sch_years,i)}
+  for(j in 1:dim(sch)[1]){
+    good_sch[j,,i]=round(col(sch[,,i])[1,]*((sch[j,,i]+1)/(sch[j,,i]+1)))
+    good_sch[j,,i]<-good_sch[j,,i][order(good_sch[j,,i])]
+  }
+  
+}
+pops_sites_index<-apply(pops_sites,2,function(x) length(which(!is.na(x))))
+pops_sites_index2<-apply(pops_sites2,2,function(x) length(which(!is.na(x))))
+unk_p_index_index<-apply(unk_p_index,2,function(x) length(which(!is.na(x))))
+good_MR_data_index<-apply(good_MR_data,2,function(x) length(which(!is.na(x))))
+no_MR_data_index<-apply(no_MR_data,2,function(x) length(which(!is.na(x))))
+IMW_redd_tot[!GRTSdat$GRTS_Population%in%c("Abernathy","Mill","Germany")]<-0
+IMW_redd_tot[GRTSdat$Order[GRTSdat$GRTS_Population%in%c("Mill","Germany")],!c(1:yrs)%in%sch_years]<-0
+catch_pops=GRTSdat$Order[GRTSdat$GRTS_Population%in%c("Upper Cowlitz and Cispus","Tilton","Upper NF Toutle","Upper NF Lewis")] #no catch in upper NF Toutle or Lewis
+names(catch_pops)<-c("Upper Cowlitz and Cispus","Tilton","Upper NF Toutle","Upper NF Lewis")
+
+
+#==================
+#data list for JAGS
+#==================
+jagsdat<-list(
+  #=========
+  #GRTS DATA
+  #=========
+  yrs=yrs,
+  pops=pops, #Number of pops from GRTS
+  sites=sites, # number of GRTS sites per pop
+  pops_sites=pops_sites,#list of pops with >0 GRTS sites by year
+  pops_sites2=pops_sites2, #number of pops with >0 GRTS sites by year
+  pops_sites_index=pops_sites_index,#list of pops with >0 index miles by year
+  pops_sites_index2=pops_sites_index2, #number of pops with >0 Index Miles by year
+  p_index=p_index,#proportion of abundance accounted for by index counts (only known where indexes are census or GRTS are census)
+  unk_p_index=unk_p_index,#list of pops unknown in GRTS and Index counts 
+  unk_p_index_index=unk_p_index_index,#number of pops unknown in GRTS and Index counts 
+  Y2=Y2+NON_TWS_redds+IMW_redd_tot, #index redds
+  Y=Y,#redds in GRTS reaches
+  redd_min=Y+Y2+IMW_redd_tot+NON_TWS_redds,#+IMW_redd_tot_inits ADDED LATER TO FIRST GET RID OF ZEROS
+  mis_miles=mis_miles, #miles in GRTS frame minus GRTS survey # mileage, minus index, minus truncations for barriers.
+  F_miles=F_miles,
+  GRTS_miles=GRTS_miles,
+  I_miles=I_miles,
+  F=Fm,#female carcs sampled
+  AS=AS,#adult carcs sampled no jacks
+  H=H,#hatchery fish (define type!)
+  MS=MS,#mark samples
+  UM_ad_lim=MS-H,
+  Oc=Oc,#number of reaches in a basin w/ greater than zero count
+  y=y,# new redd count by reach for whole season in each basin; order is GRTS pops #order, need same #  of reaches for all, fill in with NA; Dimensions of raw redds/reach mile data (Rows, Columns)
+  g=g,# GRTS reach
+  #log_mu_c_obs=log(pmax((Y+Y2+NON_TWS_redds+IMW_redd_tot)/pmax(F_miles-mis_miles,0.001),0.001)),
+  #log_mu2_obs=log(missed_redds_obs)/(mis_miles+0.001)+0.001,
+  #====================================
+  #RpF Data (which is merged with GRTS)
+  #====================================
+  n1=n1,
+  n2=n2,
+  m=m,
+  good_MR_data=good_MR_data,
+  good_MR_data_index=good_MR_data_index,
+  Nb_lim=Nb_lim,
+  no_MR_data=no_MR_data,
+  no_MR_data_index=no_MR_data_index,
+  #===============
+  #Weirs/MR
+  #==============
+  IMWpops=GRTSdat$Order[GRTSdat$GRTS_Population%in%c("Abernathy","Mill","Germany")],
+  IMW_miles=IMW_miles,
+  sch = sch,
+  IMW_redd_lim = sch,
+  good_sch_index = good_sch_index,
+  good_sch = good_sch,
+  sch_years=sch_years,
+  #===================
+  #Trap and Haul
+  #==================
+  catch_pops=catch_pops,
+  log_catch_a_M_mu = log_catch_a_M_mu,
+  catch_a_M_SD =  catch_a_M_SD+.05,
+  log_catch_j_M_mu = log_catch_j_M_mu,
+  catch_j_M_SD = catch_j_M_SD+.05,
+  TH_a_M = TH_a_M,
+  TH_j_M = TH_j_M,
+  TH_a_UM = TH_a_UM,
+  TH_j_UM = TH_a_UM,
+  #=============
+  #model params
+  #============
+  xi=13.8155,#constrain logit
+  beta_a_prior=0.5,
+  beta_b_prior=0.5
+)
+
+#==============================================
+#Deal with some issues with trap and haul data
+#==============================================
+#Give observation error for years catch estimates missing
+jagsdat$catch_a_M_SD[is.na(jagsdat$catch_a_M_SD)]<-0.25
+jagsdat$catch_j_M_SD[is.na(jagsdat$catch_j_M_SD)]<-0.25
+#set trap and haul counts to zero for non T+H pops
+jagsdat$TH_a_M[!GRTSdat$Order%in%jagsdat$catch_pops,]<-0
+jagsdat$TH_a_UM[!GRTSdat$Order%in%jagsdat$catch_pops,]<-0
+jagsdat$catch_a_M<-matrix(0,nrow=pops[1],ncol=length(years))
+jagsdat$catch_a_M[GRTSdat$Order%in%jagsdat$catch_pops[names(catch_pops)%in%c("Upper Cowlitz and Cispus","Tilton")],]<-NA
+jagsdat$H[GRTSdat$Order%in%jagsdat$catch_pops,]<-0
+jagsdat$MS[GRTSdat$Order%in%jagsdat$catch_pops,]<-0
+#jagsdat$F_miles[GRTSdat$Order%in%jagsdat$catch_pops,]<-0
+jagsdat$non_TH_pops<-rep(1,pops[1])
+jagsdat$non_TH_pops[catch_pops]<-0
+jagsdat$TH_pops<-rep(1,pops[1])
+jagsdat$TH_pops[catch_pops]<-2
+jagsdat$TH_pops<-as.factor(jagsdat$TH_pops)
+#==========================
+#Give JAGS data index names
+#==========================
+namelist<-c("sites","Y2","Y","mis_miles","F","AS","H","MS","Oc","I_miles","GRTS_miles","p_index",
+            "n1","n2","m","Nb_lim",
+            "log_catch_a_M_mu","catch_a_M_SD","log_catch_j_M_mu","catch_j_M_SD",
+            "TH_a_M","TH_j_M","TH_a_UM","TH_j_UM","IMW_miles","good_sch_index","redd_min"
+)
+for(n in 1:length(namelist)){
+  colnames(jagsdat[names(jagsdat)%in%namelist][[n]])<-years
+  rownames(jagsdat[names(jagsdat)%in%namelist][[n]])<-GRTSdat$GRTS_Population
+}
+dimnames(jagsdat$y)[[3]]<-years
+dimnames(jagsdat$y)[[2]]<-temp
+dimnames(jagsdat$g)[[3]]<-years
+dimnames(jagsdat$g)[[2]]<-temp
+dimnames(jagsdat$sch)[[3]]<-years
+dimnames(jagsdat$sch)[[2]]<-temp2
+rownames(jagsdat$good_sch)<-GRTSdat$GRTS_Population
+#===================================================
+#give Mill and Germany Abernathy's sex and mark data
+#===================================================
+MG<-c("Germany","Mill")
+schtots<-matrix(NA,pops[1],yrs)
+rownames(schtots)<-GRTSdat$GRTS_Population
+for(y in 1:yrs){
+  schtots[,y]<-rowSums(sch[,,y],na.rm=T)
+}
+for(i in 1:2){
+  jagsdat$H[rownames(jagsdat$H)==MG[i],]<-jagsdat$H[rownames(jagsdat$H)%in%c("Abernathy"),]
+  jagsdat$MS[rownames(jagsdat$MS)==MG[i],]<-jagsdat$MS[rownames(jagsdat$MS)%in%c("Abernathy"),]
+  jagsdat$F[rownames(jagsdat$F)==MG[i],]<-jagsdat$F[rownames(jagsdat$F)%in%c("Abernathy"),]
+  jagsdat$AS[rownames(jagsdat$AS)==MG[i],]<-jagsdat$AS[rownames(jagsdat$AS)%in%c("Abernathy"),]
+}
+#means for starting states
+mu_est<-matrix(NA,pops,yrs)
+rownames(mu_est)<-GRTSpops$GRTS_Population
+for(i in 1:pops[1]){
+  for(j in 1:yrs){
+    if(jagsdat$GRTS_miles[i,j]>0 & jagsdat$I_miles[i,j]>0){
+      mu_est[i,j]<-(jagsdat$Y[i,j]/jagsdat$GRTS_miles[i,j])*((jagsdat$GRTS_miles[i,j]+jagsdat$mis_miles[i,j])/jagsdat$F_miles[i,j]) +
+        (jagsdat$Y2[i,j]/jagsdat$I_miles[i,j])*(jagsdat$I_miles[i,j]/jagsdat$F_miles[i,j])
+    }
+    if(jagsdat$GRTS_miles[i,j]>0 & jagsdat$I_miles[i,j]==0){
+      mu_est[i,j]<-(jagsdat$Y[i,j]/jagsdat$GRTS_miles[i,j])
+    }
+    if(jagsdat$GRTS_miles[i,j]==0 & jagsdat$I_miles[i,j]>0){
+      mu_est[i,j]<-(jagsdat$Y2[i,j]/jagsdat$I_miles[i,j])
+    }
+  }
+}
+jagsdat$mu_est1<-mu_est[,1]
+jagsdat$mu_est1[is.na(jagsdat$mu_est1)]<-rowMeans(mu_est,na.rm=T)[is.na(jagsdat$mu_est1)]
+jagsdat$mu_est1[names(jagsdat$mu_est1)%in%c("Germany","Mill")]<-jagsdat$mu_est1[names(jagsdat$mu_est1)=="Abernathy"]#abernathy given to mill, germany, and coal
+jagsdat$mu_est1[is.na(jagsdat$mu_est1)]<-mean(jagsdat$mu_est1,na.rm = T)
+jagsdat$lambda_est1<-jagsdat$mu_est1*jagsdat$F_miles[,1]/0.5/0.5 #convert redd density into adult estimate
+#adjust median ()
+jagsdat$lambda_est1[names(jagsdat$lambda_est1)%in%c("Upper Cowlitz and Cispus","Tilton","Upper NF Toutle","Upper NF Lewis")]<-c(3000,2500,200,0.01) #Upper Cowlitz/Cispus
+#jagsdat$F_miles[catch_pops,]<-NA
+
+jagsdat$pops_sites3<-data.frame(rbind(jagsdat$pops_sites2,jagsdat$pops_sites))
+jagsdat$pops_sites3[apply(jagsdat$pops_sites3,2, duplicated)]<-NA
+jagsdat$pops_sites3<-apply(jagsdat$pops_sites3,2,function(x) sort(x,na.last = T))
+jagsdat$pops_sites_index3<-apply(jagsdat$pops_sites3,2,function(x) length(which(!is.na(x))))
+jagsdat$zeros<-rep(0,jagsdat$pops[1])
+#=============================================================================
+#set F miles to 0 for Upper NF lewis before trap and haul (VERY IMPORTANT)
+#=============================================================================
+rownames(jagsdat$F_miles)<-GRTSpops$GRTS_Population
+jagsdat$F_miles[row.names(jagsdat$F_miles)=="Upper NF Lewis",which(years%in%c(2010:2011))]<-1E-9
+#================
+#set cauchy prior
+#================
+jagsdat$cauchy_scale<-0.5
+```
+
+```{r JAGS params, message = FALSE, warning = FALSE,results = "hide"}
+#==========================
+#Jags Parameters to Monitor
+#==========================
+pars<-c(
+  #----
+  #GRTS
+  #----
+  "pp",
+  "rr",
+  "mu",
+  "mu2",
+  "log_lambda_mu",
+  "log_lambda",
+  "mu_mu",
+  "mu_mu_mu",
+  "sigma_mu",
+  "phi",
+  "log_redd_mu",
+  "rho",
+  "sigma_RpF_process",
+  "sigma_disp",
+  "sigma_disp_mu",
+  "sigma_disp_sigma",
+  "sigma_mu_process",
+  "sigma_mu_process_pop",
+  "sigma_mu_process_mu",
+  "trend",
+  "log_lambda1_mu",
+  "log_lambda1_SD",
+  "Redd_tot",
+  "missed_redds",
+  "pF",
+  "pM",
+  "sigma_PM_process",
+  "pUM",
+  "Adults",
+  "UM_ad",
+  "M_ad",
+  #"F_miles",
+  #"hier_pJ",
+  "pF_mu",
+  "pF_sd",
+  "p_index",
+  #"pJ_mu",
+  #"pJ_sd",
+#  "logit_pp_pred",
+ # "logit_pF_pred",
+  #"logit_pJ_pred"
+  #---
+  #RpF
+  #---
+  "p",
+  #"RpF",
+  "RpF_mu",
+  #"sigma_RpF",
+  #-------------
+  #Trap and Haul
+  #-------------
+  #"TH_a_M_esc",
+  #"TH_a_j_esc",
+  #"catch_a_M",
+  #"catch_j_M",
+  "HR_a_M"
+  #"HR_j_M",
+  #-----------
+  #MAG
+  #-----------
+  #"p.sch",
+  #"IMW_redd_tot_sch"
+)
+
+
+#initial values
+# initials<- function(jagsdat)
+# {
+#   list(
+#     list("log_mu"=jagsdat$mu_est
+#          )
+#     )
+# }
+```
+
+```{r Run JAGS Model, message = FALSE, warning = FALSE,results = "hide"}
+if(fit_JAGS ==TRUE){
+  jagsfit<-Run_JAGS_Model(models.dir=models.dir,
+                          results.dir=results.dir,
+                          model.file=model.file,
+                          pars=pars,
+                          chains=chains,
+                          thin=thin,
+                          burn=burn,
+                          iter=iter
+                        )
+}
+```
+
+# Reconfigure Data for New Stan Model
+```{r Reconfigure Data for New Stan Model, message = FALSE, warning = FALSE,results = "hide"}
+#pm
+H<-jagsdat$H%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_pm")%>%
+  pivot_longer(cols = !c("pop_pm"),
+               names_to = "yr_pm",
+               values_to = "H"
+               )
+MS_H<-jagsdat$MS%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_pm")%>%
+  pivot_longer(cols = !c("pop_pm"),
+               names_to = "yr_pm",
+               values_to = "MS"
+               )%>%
+  left_join(H,by=c("yr_pm","pop_pm"))%>%
+  filter(MS>0)%>%
+  ungroup()%>%
+  mutate(pop_pm=as.numeric(as.character(pop_pm)),
+         yr_pm=as.numeric(as.character(yr_pm)),
+         yr_pm = yr_pm-min(years)+1
+         
+         )
+#pf
+F<-jagsdat$F%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_pf")%>%
+  pivot_longer(cols = !c("pop_pf"),
+               names_to = "yr_pf",
+               values_to = "F"
+               )
+AS_F<-jagsdat$AS%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_pf")%>%
+  pivot_longer(cols = !c("pop_pf"),
+               names_to = "yr_pf",
+               values_to = "AS"
+               )%>%
+  left_join(F,by=c("yr_pf","pop_pf"))%>%
+  filter(AS>0)%>%
+  ungroup()%>%
+  mutate(pop_pf=as.numeric(as.character(pop_pf)),
+         yr_pf=as.numeric(as.character(yr_pf)),
+         yr_pf = yr_pf-min(years)+1
+         
+         )
+#mr
+n2<-jagsdat$n2%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_mr")%>%
+  pivot_longer(cols = !c("pop_mr"),
+               names_to = "yr_mr",
+               values_to = "n2"
+               )
+m<-jagsdat$m%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_mr")%>%
+  pivot_longer(cols = !c("pop_mr"),
+               names_to = "yr_mr",
+               values_to = "m"
+               )
+n1_n2_m<-jagsdat$n1%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_mr")%>%
+  pivot_longer(cols = !c("pop_mr"),
+               names_to = "yr_mr",
+               values_to = "n1"
+               )%>%
+  left_join(n2,by=c("yr_mr","pop_mr"))%>%
+  left_join(m,by=c("yr_mr","pop_mr"))%>%
+  filter(n1>0)%>%
+  ungroup()%>%
+  mutate(pop_mr=as.numeric(as.character(pop_mr)),
+         yr_mr=as.numeric(as.character(yr_mr)),
+         yr_mr = yr_mr-min(years)+1
+         
+         )
+#Y2-Index redds
+I_miles<-jagsdat$I_miles%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_Y2")%>%
+  pivot_longer(cols = !c("pop_Y2"),
+               names_to = "yr_Y2",
+               values_to = "I_miles"
+               )
+IMW_Y2<-read_csv(file.path(csv.data.dir,IMWdata_v2.name))%>%
+  left_join(GRTSpops%>%
+              dplyr::select(GRTS_Population,Order)%>%
+              mutate(Order = as.character(Order))
+              , by = c("GRTS_Population")
+            )%>%filter(GRTS_Population != "Abernathy" & I_miles > 0)%>%
+    rename(yr_Y2 = Year, pop_Y2 = Order)%>%
+    mutate(yr_Y2 = as.character(yr_Y2))%>%
+    dplyr::select(!c(Comment))
+Y2<-jagsdat$Y2%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_Y2")%>%
+  pivot_longer(cols = !c("pop_Y2"),
+               names_to = "yr_Y2",
+               values_to = "Y2"
+               )%>%
+  left_join(GRTSpops%>%
+              dplyr::select(GRTS_Population,Order)%>%
+              mutate(Order = as.character(Order))
+              , by = c("pop_Y2"="Order")
+  )%>%
+  left_join(I_miles,by=c("yr_Y2","pop_Y2"))%>%
+  filter(I_miles>0 & !is.na(Y2))%>%
+  bind_rows(IMW_Y2)%>%
+  ungroup()%>%
+  mutate(pop_Y2=as.numeric(as.character(pop_Y2)),
+         yr_Y2=as.numeric(as.character(yr_Y2)),
+         yr_Y2 = yr_Y2-min(years)+1)
+  
+#Y GRTS redds
+g<-melt(jagsdat$g)%>%
+  as_tibble()%>%
+  rename(pop_Y = X1, Reach = X2, yr_Y = X3, g = value)
+
+Y<-melt(jagsdat$y)%>%
+  as_tibble()%>%
+  rename(pop_Y = X1, Reach = X2, yr_Y = X3, Y = value)%>%
+  left_join(g, by=c("yr_Y","pop_Y","Reach"))%>%
+  left_join(GRTSpops%>%
+            dplyr::select(GRTS_Population,Order)%>%
+            mutate(Order = as.character(Order))
+            , by = c("pop_Y"="GRTS_Population")
+  )%>%
+  rename(GRTS_Population=pop_Y,pop_Y=Order)%>%
+  #adding some filters in that shouldn't have to exist
+  filter(!is.na(g))%>%
+  filter(!is.na(Y))%>%
+  ungroup()%>%
+  mutate(pop_Y=as.numeric(as.character(pop_Y)),
+         yr_Y=as.numeric(as.character(yr_Y)),
+         yr_Y = yr_Y-min(years)+1)
+
+#indexes for P_Index
+yr_pop<-expand_grid(yr_Y2=years,pop_Y2=c(1:jagsdat$pops[1]))%>%
+  mutate(yr_Y2 = as.character(yr_Y2), pop_Y2 = as.character(pop_Y2))%>%
+  mutate(pop_Y2=as.numeric(as.character(pop_Y2)),
+         yr_Y2=as.numeric(as.character(yr_Y2)),
+         yr_Y2 = yr_Y2-min(years)+1
+  )
+
+I_miles_mat = Y2%>%
+  dplyr::select(yr_Y2,pop_Y2,I_miles)%>%
+  right_join(yr_pop,by=c("yr_Y2","pop_Y2"))%>%
+  mutate(I_miles = replace_na(I_miles,0))%>%
+  mutate(pop_Y2 = as.numeric(pop_Y2))%>%
+  arrange(pop_Y2,yr_Y2)%>%
+  pivot_wider(names_from = yr_Y2,values_from = I_miles)%>%
+  dplyr::select(!pop_Y2)
+  
+
+index_data_only<-I_miles_mat 
+index_data_only[jagsdat$GRTS_miles==0 & index_data_only > 0 ]<-1
+index_data_only[jagsdat$GRTS_miles!=0]<-0
+index_data_only<-t(index_data_only)
+
+index_and_GRTS<-I_miles_mat
+index_and_GRTS[jagsdat$GRTS_miles == 0]<-0
+index_and_GRTS[index_and_GRTS>0]<-1
+index_and_GRTS<-index_and_GRTS%>%
+  as_tibble()%>%
+  rownames_to_column(var = "pop_grts_and_index")%>%
+  pivot_longer(cols = !c("pop_grts_and_index"),
+               names_to = "yr_grts_and_index",
+               values_to = "index_and_GRTS"
+               )%>%
+  filter(index_and_GRTS==1)%>%
+  ungroup()%>%
+  mutate(pop_grts_and_index=as.numeric(as.character(pop_grts_and_index)),
+         yr_grts_and_index=as.numeric(as.character(yr_grts_and_index)),
+         )
+#Trap and Haul and CRC data
+catch_a_M_SD_dat<-jagsdat$catch_a_M_SD%>%
+  as_tibble()%>%
+  rownames_to_column(var = "crc_pops")%>%
+  pivot_longer(cols = !c("crc_pops"),
+               names_to = "crc_years_real",
+               values_to = "catch_a_M_SD"
+               )
+catch_a_M_mu_dat<-jagsdat$log_catch_a_M_mu%>%
+  as_tibble()%>%
+  rownames_to_column(var = "crc_pops")%>%
+  pivot_longer(cols = !c("crc_pops"),
+               names_to = "crc_years_real",
+               values_to = "log_catch_a_M_mu"
+               )%>%
+  mutate(catch_a_M_mu = exp(log_catch_a_M_mu))%>%
+  filter(!is.na(catch_a_M_mu) & catch_a_M_mu > 0)%>%
+  left_join(catch_a_M_SD_dat, by = c("crc_pops","crc_years_real"))%>%
+  left_join(years%>%
+              as.tibble()%>%
+              rownames_to_column()%>%
+              rename(crc_years=rowname,crc_years_real=value)%>%
+              mutate(crc_years_real=as.character(crc_years_real)),
+            
+            by = c("crc_years_real")
+  )
+
+catch_a_M_mu<-catch_a_M_mu_dat%>%
+  dplyr::select(crc_pops,crc_years,catch_a_M_mu)%>%
+  mutate(crc_pops=as.numeric(as.character(crc_pops)),
+         crc_years=as.numeric(as.character(crc_years))
+  )%>%
+  pivot_wider(names_from = crc_pops,values_from = catch_a_M_mu)%>%
+  ungroup()
+
+catch_a_M_SD<-catch_a_M_mu_dat%>%
+  dplyr::select(crc_pops,crc_years,catch_a_M_SD)%>%
+  mutate(crc_pops=as.numeric(as.character(crc_pops)),
+         crc_years=as.numeric(as.character(crc_years))
+  )%>%
+  pivot_wider(names_from = crc_pops,values_from = catch_a_M_SD)%>%
+  ungroup()
+
+
+#===================
+#make stan data list
+#===================
+
+#may need to fix del and ost mileage!
+standat<-list(
+  T = jagsdat$yrs,
+  P = jagsdat$pops[1],
+  F_miles = t(jagsdat$F_miles),
+  GRTS_miles = t(jagsdat$GRTS_miles),
+  missed_miles = t(jagsdat$mis_miles),#check to verify that GRTS + Index + Miss = Fmiles FIX becaus added IMW miles to index!!!
+  #pM
+  n_pm = nrow(MS_H), #number of pMark Likelihoods
+  H = MS_H$H, #Hatchery adults
+  MS = MS_H$MS, #Mark-Sample adults
+  pop_pm = MS_H$pop_pm, #pop index
+  yr_pm = MS_H$yr_pm, #yr index
+  #pF
+  n_pf = nrow(AS_F), #number of pFemale Likelihoods
+  F = AS_F$F, #Hatchery adults
+  AS = AS_F$AS, #Adult Sample
+  pop_pf = AS_F$pop_pf, #pop index
+  yr_pf = AS_F$yr_pf,#yr index
+  #mr
+  n_mr = nrow(n1_n2_m), #number of mark-recap Likelihoods
+  n1 = n1_n2_m$n1, #marks
+  n2 = n1_n2_m$n2, #captures
+  m = n1_n2_m$m, #recaptures
+  pop_mr = n1_n2_m$pop_mr, #pop index
+  yr_mr = n1_n2_m$yr_mr, #yr index
+  #index redds
+  n_Y2 = nrow(Y2),#number of index redd Likelihoods
+  Y2 = Y2$Y2, #index redd count
+  pop_Y2 = Y2$pop_Y2, #pop index
+  yr_Y2 = Y2$yr_Y2,#yr index
+  #grts redds
+  n_Y = nrow(Y), #number of grts redd Likelihoods
+  Y = Y$Y, #GRTS redd count
+  g = Y$g, #GRTS reach length
+  pop_Y = Y$pop_Y, #pop index
+  yr_Y = Y$yr_Y, #yr index
+  #indexes to identify when >0 GRTS and >0 Index reaches
+  index_data_only = index_data_only,
+  n_grts_and_index = dim(index_and_GRTS)[1],
+  yr_grts_and_index = index_and_GRTS$yr_grts_and_index,
+  pop_grts_and_index = index_and_GRTS$pop_grts_and_index,
+  #Trap and Haul Data
+  n_TH_pops = length(jagsdat$catch_pops),# number of pops with any Trap and Haul data
+  TH_pops= jagsdat$catch_pops, #pop indexes for TH pops
+  TH_a_UM = t(jagsdat$TH_a_UM[jagsdat$catch_pops,]), #Unmarked Adults Traped and Haul (Year by pop matrix)
+  TH_a_M = t(jagsdat$TH_a_M[jagsdat$catch_pops,]), #Marked Adults Traped and Haul (Year by pop matrix)
+  n_crc_years = nrow(catch_a_M_mu),
+  n_crc_pops = ncol(catch_a_M_mu%>%dplyr::select(!crc_years)), #number of pops with CRC data
+  crc_pops = as.numeric(unique(catch_a_M_mu_dat$crc_pops)), #years CRC data available
+  crc_years = catch_a_M_mu$crc_years, #years CRC data available for
+  catch_a_M_mu = catch_a_M_mu%>%dplyr::select(!crc_years), #CRC catch MLE
+  catch_a_M_SD = catch_a_M_SD%>%dplyr::select(!crc_years),  #CRC catch SD converted to lognormal SD using moment matching
+  #priors
+  cauchy_scale = 0.5
+)
+```
+#Fit Stan Model
+
+```{r fit Stan model, message = FALSE, warning = FALSE,results = "hide"}
+#======================
+#create final data folder
+#=====================
+subDir<-paste("Results","_",Sys.Date(),sep="")
+if (!file.exists(file.path(results.dir, subDir))){
+  dir.create(file.path(results.dir, subDir))
+}
+if(fit_Stan == TRUE){
+  #=============
+  #compile model
+  #=============
+  model<-stan_model(file = file.path(models.dir,stan_model.file))
+  #===========
+  # Fit Model
+  #===========
+  # stanfit<-sampling(object=model
+  #                   ,data=standat
+  #                   ,cores=chains
+  #                   ,chains = chains
+  #                   ,iter = iter
+  #                   ,warmup= burn
+  #                   ,thin = thin
+  #                   ,control=control
+  #                   ,verbose=F
+  #                   ,open_progress=F
+  #                   ,show_messages=F
+  #                   ,algorithm ="NUTS"
+  #       )
+  print(paste0("Start Time = ",Sys.time()))
+  stanfit<-sampling(object=model
+                    ,data=standat
+                    ,cores=4
+                    ,chains = 4
+                    ,iter = 2000
+                    ,warmup= 1000
+                    ,thin = 1
+                    ,control=list(adapt_delta=0.9)#, max_treedepth = 12)
+                    # ,verbose=F
+                    # ,open_progress=F
+                    # ,show_messages=F
+                    # ,algorithm ="NUTS"
+        )
+  saveRDS(stanfit,file.path(results.dir,subDir,"stanfit.RDS"))
+  summary<-summary(stanfit)$summary
+  write.csv(summary,file.path(results.dir,subDir,"Stan_summary.csv"))
+  res<-rstan::extract(stanfit)
+}else{
+  stanfit<-readRDS(file.path(results.dir,subDir,"stanfit.RDS"))
+  res<-rstan::extract(stanfit)
+}
+```
+
+
+
+
+# Summarize Results (Stan)
+```{r }
+
+#name columns by GRTSpop
+GRTSpop_params<-c("Adults","M_ad","UM_ad","pF","pM")
+for(i in 1:length(GRTSpop_params)){
+  res[names(res)==GRTSpop_params[i]]<-lapply(res[names(res)==GRTSpop_params[i]], 
+    function(x){
+      x<-aperm(x,c(1,3,2))
+      colnames(x)<-rownames(jagsdat$Y); x
+    }
+  )
+}
+#jagsfit$BUGSoutput$sims.list$Adults<-jagsfit$BUGSoutput$sims.list$M_ad+jagsfit$BUGSoutput$sims.list$UM_ad
+#jagsfit$BUGSoutput$sims.list$pM<-jagsfit$BUGSoutput$sims.list$M_ad/(jagsfit$BUGSoutput$sims.list$M_ad+jagsfit$BUGSoutput$sims.list$UM_ad)
+#=============================
+#Print out results by GRTS pop
+#=============================
+for(i in 1:length(GRTSpop_params)){
+  sims<-res[names(res)==GRTSpop_params[i]]
+  for(j in 1:yrs){
+    temp<-NULL
+    temp<-apply(sims[[1]][,,j],2,function(x) quantile(x,c(0.025,0.5,0.975)))
+    temp<-temp[,colnames(temp)!=""]
+    means<-NULL
+    means<-colMeans(sims[[1]][,,j])
+    means<-means[names(means)!=""]
+    sd<-NULL
+    sd<-apply(sims[[1]][,,j],2,sd)
+    sd<-sd[names(sd)!=""]
+    temp<-data.frame(means,sd,t(temp))
+    if(!names(sims)[1]%in%c("pM","pF","p_index","")){temp<-round(temp)}
+    if(names(sims)[1]%in%c("pM","pF","p_index")){temp<-round(temp,3)}
+    #=====================
+    #combine years results
+    #=====================
+    temp$Population<-rownames(temp)
+    temp$Year<-years[j]
+    temp<-temp[,c(c(dim(temp)[2]-1),dim(temp)[2],1:c(dim(temp)[2]-2))]
+    colnames(temp)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    if(j==1){temp2<-temp}else{temp2<-data.frame(rbind(temp2,temp))}
+    colnames(temp2)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    #======================
+    # Year specific Results
+    #======================
+    colnames(temp)<-c("Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    # if (file.exists(subDir)){
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # } else {
+    #   dir.create(file.path(results.dir, subDir,years[j]))
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # }
+    # write.csv(temp,paste(years[j],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = T)
+    
+  }
+  GRTS_results_filename<-file.path(results.dir, subDir,paste0(years[1],"_",years[length(years)],"_Coho_GRTSpop_",names(sims)[1],".csv"))
+  write.csv(temp2,GRTS_results_filename,row.names = FALSE)
+}
+
+
+
+#==========
+#TRT params
+#==========
+TRTpop_params<-c("M_ad","UM_ad") #pM, Adult total
+TRTpops<-data.frame(read_csv(paste(csv.data.dir,frame_file.name,sep="/")))$TRT_Population
+TRTresults<-list(NULL)
+for(i in 1:length(TRTpop_params)){
+  temp<-NULL
+  temp<-lapply(res[names(res)==TRTpop_params[i]], 
+               function(x) {
+                 colnames(x) <-TRTpops; x
+               }
+               )
+  TRTresults[[i]]<-array(NA,dim=c(dim(sims[[1]])[1],length(unique(TRTpops)),standat$T))
+  dimnames(TRTresults[[i]])[[3]]<-years
+  names(TRTresults)[i]<-TRTpop_params[i]
+  for (j in 1:yrs){
+    TRTresults[[i]][,,j]<-t(rowsum(t(temp[[1]][,,j]), group = colnames(temp[[1]][,,j]), na.rm = T))
+    dimnames(TRTresults[[i]])[[2]]<-unique(TRTpops[order(TRTpops)])
+    
+  }
+}
+TRTresults$Adults<-TRTresults$M_ad+TRTresults$UM_ad
+TRTresults$pM<-TRTresults$M_ad/(TRTresults$M_ad+TRTresults$UM_ad)
+
+for(i in 1:length(names(TRTresults))){
+  for(j in 1:yrs){
+    temp<-NULL
+    temp<-apply(TRTresults[[i]][,,j],2,function(x) quantile(x,c(0.025,0.5,0.975)))
+    temp<-temp[,!is.na(colnames(temp))]
+    means<-NULL
+    means<-colMeans(TRTresults[[i]][,,j])
+    means<-means[!is.na(names(means))]
+    sd<-NULL
+    sd<-apply(TRTresults[[i]][,,j],2,sd)
+    sd<-sd[!is.na(names(sd))]
+    temp<-data.frame(means,sd,t(temp))
+    if(!names(TRTresults)[i]%in%c("pM")){temp<-round(temp)}
+    if(names(TRTresults)[i]%in%c("pM")){temp<-round(temp,3)}
+    #=====================
+    #combine years results
+    #=====================
+    temp$Population<-rownames(temp)
+    temp$Year<-years[j]
+    temp<-temp[,c(c(dim(temp)[2]-1),dim(temp)[2],1:c(dim(temp)[2]-2))]
+    colnames(temp)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    if(j==1){temp2<-temp}else{temp2<-data.frame(rbind(temp2,temp))}
+    colnames(temp2)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    #======================
+    # Year specific Results
+    #======================
+    colnames(temp)<-c("Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    # if (file.exists(subDir)){
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # } else {
+    #   dir.create(file.path(results.dir, subDir,years[j]))
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # }
+    # write.csv(temp,paste(years[j],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = T)
+    
+  }
+  TRT_results_filename<-file.path(results.dir, subDir,paste0(years[1],"_",years[length(years)],"_Coho_TRT_",names(TRTresults)[i],".csv"))
+  write.csv(temp2,TRT_results_filename,row.names = FALSE)
+}
+
+
+#==============================
+#Cowlitz Report Plots
+#======================
+#set year
+# yr=10
+# 
+# #redd density for the Lower Cowlitz
+# pdf(paste("Redds per mile in Lower Cowlitz GRTS reaches ",years[yr],".pdf",sep=""))
+# library(RColorBrewer)
+# cols<-brewer.pal(5,name="BuGn")
+# par(new=F)
+# xvals<-c(0:100)
+# max.x<-50
+# lambda<-matrix(NA,dim(jagsfit$BUGSoutput$sims.list$pp)[1],length(xvals))
+# for(i in 1:dim(jagsfit$BUGSoutput$sims.list$pp)[1]){
+#   lambda[i,1:length(xvals)]<-dnbinom(xvals,prob=jagsfit$BUGSoutput$sims.list$pp[i,10,yr],size=jagsfit$BUGSoutput$sims.list$rr[i,10])
+#   lambda[i,1:length(xvals)]<-lambda[i,1:length(xvals)]/max(lambda[i,1:length(xvals)])
+# }
+# lambda_mu<-apply(lambda,2,mean)
+# lambda_quants<-t(apply(lambda,2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975))))
+# plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Distribution of Redds per Mile \n in GRTS Reaches below weirs")
+# #matlines(y=lambda_quants,x=matrix(rep(xvals,5),nrow=length(xvals),ncol=5),col=brewer.pal(5,name="RdYlBu"),lwd=2,lty=1)
+# for(i in 1:2){
+#   polygon(x=c(xvals,rev(xvals)),y=c(lambda_quants[,i],rev(lambda_quants[,6-i])),col=cols[i+1],lty="blank")
+# }
+# lines(x=xvals,y=lambda_quants[,3],lwd=2)
+# axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
+# axis(2,seq(from=0,to=1,by=(1/4)),las=2)
+# dev.off()
+# 
+# pdf(paste("Lower Cowlitz mean redd density ",years[yr],".pdf",sep=""))
+# mu_den<-density(jagsfit$BUGSoutput$sims.list$mu[,10,yr])
+# plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Mean Redds per Mile")
+# lines(y=(mu_den$y/max(mu_den$y)),x=mu_den$x,lwd=2,col=cols[4])
+# axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
+# axis(2,seq(from=0,to=1,by=(1/4)),las=2)
+# dev.off()
+# 
+# jagsdat$y[10,,yr]
+# 
+# write.csv(data.frame(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10]),paste("lower Cowlitz_pp_rr_",years[yr],".csv",sep=""),row.names = F)
+# plot(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10])
+
+
+
+# ===============
+# Cowlitz Results
+# ==============
+yr=standat$T
+CowlitzNames<-c("Lower Cowlitz",
+                "Delameter_Above Weir",
+                "Lacamas_Above Weir",
+                "Olequa_Above Weir",
+                "Ostrander_Above Weir"
+)
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  LowerCowlitz_DIP_Adults<-apply(res$Adults[,colnames(res$Adults)%in%CowlitzNames,i],1,sum)
+  #plot(density(LowerCowlitz_DIP_Adults))
+  Cowlitz_Adults<-apply(data.frame(LowerCowlitz_DIP_Adults,res$Adults[,colnames(res$Adults)%in%CowlitzNames,i]),2,function(x) c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_Adults<-data.frame(t(Cowlitz_Adults),i+2009)
+  Cowlitz_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_Adults)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_Adults)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,file.path(results.dir, subDir, paste0("Cowlitz_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv")),row.names = FALSE)
+
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  LowerCowlitz_DIP_NOR_Adults<-apply(res$UM_ad[,colnames(res$Adults)%in%CowlitzNames,i],1,sum)
+  #plot(density(LowerCowlitz_DIP_NOR_Adults))
+  Cowlitz_NOR_Adults<-apply(data.frame(LowerCowlitz_DIP_NOR_Adults,res$UM_ad[,colnames(res$Adults)%in%CowlitzNames,i]),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_NOR_Adults<-data.frame(t(Cowlitz_NOR_Adults),i+2009)
+  Cowlitz_NOR_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_NOR_Adults)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_NOR_Adults)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,file.path(results.dir, subDir, paste0("Cowlitz_NOR_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv")),row.names = FALSE)
+
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  LowerCowlitz_DIP_HOR_Adults<-apply(res$M_ad[,colnames(res$Adults)%in%CowlitzNames,i],1,sum)
+  #plot(density(LowerCowlitz_DIP_NOR_Adults))
+  Cowlitz_HOR_Adults<-apply(data.frame(LowerCowlitz_DIP_HOR_Adults,res$M_ad[,colnames(res$Adults)%in%CowlitzNames,i]),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_HOR_Adults<-data.frame(t(Cowlitz_HOR_Adults),i+2009)
+  Cowlitz_HOR_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_HOR_Adults)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_HOR_Adults)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,file.path(results.dir, subDir, paste0("Cowlitz_HOR_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv")),row.names = FALSE)
+
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  pM<-data.frame(res$M_ad[,colnames(res$Adults)%in%CowlitzNames,i]/(res$UM_ad[,colnames(res$Adults)%in%CowlitzNames,i]+res$M_ad[,colnames(res$Adults)%in%CowlitzNames,i]))
+  LowerCowlitz_DIP_Adults<-apply(res$Adults[,colnames(res$Adults)%in%CowlitzNames,i],1,sum)
+  LowerCowlitz_DIP_HOR_Adults<-apply(res$M_ad[,colnames(res$Adults)%in%CowlitzNames,i],1,sum)
+  LowerCowlitz_DIP_pM<-LowerCowlitz_DIP_HOR_Adults/LowerCowlitz_DIP_Adults
+  Cowlitz_pM<-apply(data.frame(LowerCowlitz_DIP_pM,pM),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_pM<-data.frame(t(Cowlitz_pM),i+2009)
+  Cowlitz_pM$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_pM)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_pM)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,file.path(results.dir, subDir, paste0("Cowlitz_pM_2010_",2009+yrs,"_",Sys.Date(),".csv")),row.names = FALSE)
+
+#weir efficiency
+WC<-jagsdat$n1[colnames(res$Adults)%in%CowlitzNames[2:5],yr]
+WC<-t(matrix(rep(WC,dim(sims[[1]])[1]),ncol=dim(sims[[1]])[1],nrow=4))
+WE<-WC/res$UM_ad[,colnames(res$Adults)%in%CowlitzNames[2:5],yr]
+WE<-apply(WE,2,function(x) c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+rownames(WE)[6:7]<-c("mean","sd")
+WE<-t(WE)
+rownames(WE)<-CowlitzNames[2:5]
+write.csv(WE,file.path(results.dir, subDir, paste0("Cowlitz_Tribs_Weir_Efficiency_",2009+yrs,"_",Sys.Date(),".csv")))
+
+#=============================
+#new plots 12.16.2019
+#====================
+poporder<-unique(as.character(GRTSpops$TRT_Population))
+poporder<-c(poporder[!poporder%in%c("",NA)],"LCR ESU")
+TRT_miles<-data.frame(GRTSpops%>%group_by(TRT_Population)%>%summarise(TRT_F_miles=sum(F_miles)))
+TRT_miles<-TRT_miles[!TRT_miles$TRT_Population%in%c("",NA),]
+TRT_miles<-TRT_miles%>%group_by(TRT_Population)%>%adorn_totals("row",name="LCR ESU")
+
+UM_ad_results<-data.frame(melt(apply(TRTresults$UM_ad,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+colnames(UM_ad_results)<-c("Quantile","Population","Year","UM_ad")
+UM_ad_results<-UM_ad_results[!UM_ad_results$Population%in%c("",NA),]
+UM_ad_results$Population<-as.character(UM_ad_results$Population)
+UM_ESUtot<-data.frame(melt(apply(apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+UM_ESUtot$Population<-"LCR ESU"
+UM_ESUtot$Population<-as.character(UM_ESUtot$Population)
+colnames(UM_ESUtot)<-c("Quantile","Year","UM_ad","Population")
+UM_ad_results<-bind_rows(UM_ad_results,UM_ESUtot)
+UM_ad_density_results<-merge(UM_ad_results,TRT_miles,by.x="Population",by.y="TRT_Population")
+UM_ad_results<-UM_ad_results%>%spread(Quantile,UM_ad)
+UM_ad_results$Origin<-"Wild"
+UM_ad_density_results$Density<-UM_ad_density_results$UM_ad/(UM_ad_density_results$TRT_F_miles*1.60934)
+UM_ad_density_results<-UM_ad_density_results%>%select(Population, Year, Quantile, Density)%>%spread(Quantile,Density)
+UM_ad_density_results$Origin<-"Wild"
+
+M_ad_results<-data.frame(melt(apply(TRTresults$M_ad,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+colnames(M_ad_results)<-c("Quantile","Population","Year","M_ad")
+M_ad_results<-M_ad_results[!M_ad_results$Population%in%c("",NA),]
+M_ad_results$Population<-as.character(M_ad_results$Population)
+M_ESUtot<-data.frame(melt(apply(apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+M_ESUtot$Population<-"LCR ESU"
+M_ESUtot$Population<-as.character(M_ESUtot$Population)
+colnames(M_ESUtot)<-c("Quantile","Year","M_ad","Population")
+M_ad_results<-bind_rows(M_ad_results,M_ESUtot)
+M_ad_density_results<-merge(M_ad_results,TRT_miles,by.x="Population",by.y="TRT_Population")
+M_ad_results<-M_ad_results%>%spread(Quantile,M_ad)
+M_ad_results$Origin<-"Hatchery"
+M_ad_density_results$Density<-M_ad_density_results$M_ad/(M_ad_density_results$TRT_F_miles*1.60934)
+M_ad_density_results<-M_ad_density_results%>%select(Population, Year, Quantile, Density)%>%spread(Quantile,Density)
+M_ad_density_results$Origin<-"Hatchery"
+
+
+pM_results<-melt(apply(TRTresults$pM,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975))))
+colnames(pM_results)<-c("Quantile","Population","Year","pM")
+pM_results<-pM_results[!pM_results$Population%in%c("",NA),]
+pM_results$Population<-as.character(pM_results$Population)
+M_ESUtot<-apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum)
+UM_ESUtot<-apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum)
+pM_ESUtot<-data.frame(melt(apply(M_ESUtot/(M_ESUtot+UM_ESUtot),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+pM_ESUtot$Population<-"LCR ESU"
+pM_ESUtot$Population<-as.character(pM_ESUtot$Population)
+colnames(pM_ESUtot)<-c("Quantile","Year","pM","Population")
+pM_results<-bind_rows(pM_results,pM_ESUtot)
+pM_results<-pM_results%>%spread(Quantile,pM)
+
+
+Abundance_results<-data.frame(rbind(M_ad_results,UM_ad_results))
+
+Density_results<-data.frame(rbind(M_ad_density_results,UM_ad_density_results))
+write.csv(Density_results,file.path(results.dir,subDir,"Density_Results.csv"),)
+
+Recovery_Goals<-data.frame(read.csv(paste(csv.data.dir,"TRT_Population_Goals.csv",sep="/")))
+
+Abundance_results<-merge(Abundance_results,Recovery_Goals,by.x="Population",by.y="TRT_Population")
+
+NOR<-data.frame(Abundance_results%>%filter(Origin=="Wild")%>%group_by(Population)%>%summarise(Recovery.Goal=max(Recovery.Goal),med=median(X50.),min=min(X50.),max=max(X50.)))
+NOR_goal<-data.frame(Abundance_results%>%filter(Origin=="Wild" & X50.>Recovery.Goal)%>%count(Population))
+NOR_Density<-data.frame(Density_results%>%filter(Origin=="Wild")%>%group_by(Population)%>%summarise(med.NOR_Density=median(X50.),min.NOR_Density=min(X50.),max.NOR_Density=max(X50.)))
+HOR<-data.frame(Abundance_results%>%filter(Origin=="Hatchery")%>%group_by(Population)%>%summarise(med=median(X50.),min=min(X50.),max=max(X50.)))
+pM<-data.frame(pM_results%>%group_by(Population)%>%summarise(med.PHOS=median(`50%`),min.pHOS=min(`50%`),max.pHOS=max(`50%`)))
+
+Results_Table1<-merge(NOR,HOR,by="Population",suffixes = c(".NOR",".HOR"))
+Results_Table1<-merge(Results_Table1,NOR_Density,by="Population")
+Results_Table1<-merge(Results_Table1,pM,by="Population")
+Results_Table1<-merge(Results_Table1,NOR_goal,all=TRUE)
+write.csv(Results_Table1,file.path(results.dir,subDir,"Results_Table1.csv"),row.names = FALSE)
+
+#unmarked plot
+p<-ggplot(arrange(transform(UM_ad_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."))) +
+  geom_line(size=1)+
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
+  facet_wrap(~Population,scales="free") +
+  aes(ymin=0) +
+  labs(x="Year",y="Spawner Abundance") +
+  theme_bw()
+  
+print(p)
+ggsave(file.path(results.dir,subDir,"UM_ad.pdf"),
+       plot=p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+#unmarked and marked plot
+p<-ggplot(arrange(transform(Abundance_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("X50."),color=as.name("Origin"))) +
+  geom_line(size=1)+
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5."),fill=as.name("Origin")), alpha=0.25,color=NA) + 
+  facet_wrap(~Population,scales="free") +
+  geom_hline(data = arrange(transform(Abundance_results,Population=factor(Population,levels=poporder))), aes(yintercept = Recovery.Goal,group = Population), size=1,linetype = "dashed",color="black")+
+  aes(ymin=0) +
+  labs(x="Year",y="Spawner Abundance") +
+  theme_bw()
+
+print(p)
+ggsave(file.path(results.dir,subDir,"Abundance.pdf"),
+       plot=p,
+       width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+#phos plot
+p<-ggplot(arrange(transform(pM_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("X50."))) +
+  geom_line(size=1)+
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
+  facet_wrap(~Population) +
+  aes(ymin=0,ymax=1) +
+  labs(x="Year",y="Proportion Hatchery Origin Spawners") +
+  theme_bw()
+
+print(p)
+ggsave(file.path(results.dir,subDir,"pM.pdf"),
+       plot=p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+#density plot
+p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."),color=as.name("Origin"))) +
+  geom_line(size=1)+
+  facet_wrap(~Population) + #,scales ="free"
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5."),fill=as.name("Origin")), alpha=0.25,color=NA) + 
+  #ylim(0.0,200) +
+  # #scale_y_log10(breaks=c(0.001,0.01,0.1,1,10,100),labels=c(0.001,0.01,0.1,1,10,100),limits = c(.001,200),expand=c(0,0)) +
+  # #scale_y_log10()+
+  scale_y_log10(limits = c(0.001, 180),
+                labels = trans_format("log10", math_format(10^.x)),
+                breaks=trans_breaks("log10", function(x) 10^x, n=4)) +
+  theme_bw() +
+  theme(panel.grid.minor = element_line(color="grey80", linetype="solid"), panel.grid.major = element_line(color="grey80", linetype="solid")) +
+  annotation_logticks(base = 10)+
+  labs(x="Year",y="Spawners per Km")
+
+print(p)
+ggsave(file.path(results.dir,subDir,"Density.pdf"),
+       plot=p,
+       width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+#
+Recovery_Goals<-merge(Recovery_Goals,TRT_miles)
+Recovery_Goals<-Recovery_Goals[!is.na(Recovery_Goals$Recovery.Goal) & Recovery_Goals$TRT_Population!="LCR ESU",]
+Recovery_Goals$Recovery.Goal<-as.numeric(Recovery_Goals$Recovery.Goal)
+p<-ggplot(Recovery_Goals,aes(x=TRT_F_miles*1.60934, y=Recovery.Goal,color=Recovery.Designation)) +
+   geom_point(size=2)+
+  labs(x="Estimated Habitat Extent (km)",y="Recovery Goal") +
+  #scale_y_log10()+
+  #scale_x_log10()+
+  aes(ymin=100) +
+  theme_classic()
+print(p)
+ggsave(file.path(results.dir,subDir,"Recovery Goal vs Kilometers.pdf"),
+       plot=p,
+       width = 4, height = 3, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+
+
+logit<-function(x){log(x/(1-x))}
+ilogit<-function(x){exp(x)/(1+exp(x))}
+hier_pF<-ilogit(rnorm(6400,logit(res$mu_pF),res$sigma_pF))
+params<-data.frame(matrix(c(
+quantile(res$RpF,c(0.025,0.25,0.5,0.75,0.975))
+,quantile(hier_pF,c(0.025,0.25,0.5,0.75,0.975))
+),nrow = 5,ncol=2)
+)
+
+library(RColorBrewer)
+cols<-brewer.pal(n=2,name = "Pastel1")
+# par(mfrow=c(3,1),mar=c(2,10,2,5))
+# boxplot(params[,1],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[1],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("Redds Per Female", "Redds per Female", "rho"),las=2)
+# boxplot(params[,2],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[2],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("Proportion Female", "Redds per Female", "rho"),las=2)
+# boxplot(params[,3],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[3],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("rho", "Redds per Female", "rho"),las=2)
+
+
+# par(mfrow=c(3,1),mar=c(2,10,2,5))
+# boxplot(params[,1],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[1],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("Redds Per Female", "Redds per Female", "rho"),las=2)
+# matplot(apply(jagsfit$BUGSoutput$sims.list$pF,3L,c))
+# axis(2,at=c(1:3),labels = c("Proportion Female", "Redds per Female", "rho"),las=2)
+# boxplot(params[,3],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[3],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("rho", "Redds per Female", "rho"),las=2)
+
+
+
+dimnames(res$pF)[[3]]<-years
+df<-data.frame(melt(res$pF))%>%
+  rename(pF=value,Year=Var.3,GRTS_Population = Var.2)
+hier_pF<-data.frame(hier_pF)
+hier_pF$GRTS_Population<-"hier_pF"
+
+
+p<-ggplot(data = df, aes(x=pF, group=GRTS_Population)) + 
+  geom_density(alpha = 0.1,fill='black', linetype='blank') +
+  theme_bw()+
+  geom_density(data=hier_pF,mapping=aes(x=hier_pF),alpha = 1,linetype='solid',color=rgb(0.2,0.2,0.6,1),size=1.25)+
+  labs(x="Proportion of Females",y="Kernel Density") +
+  aes(xmin=0.25,xmax=0.75) 
+  print(p)
+
+  RpF <- data.frame(res$RpF)%>%
+    rename(RpF=res.RpF)
+  p2<-ggplot(data = RpF)+ 
+    geom_density(aes(x=RpF),alpha = 0.4,fill='black') +
+    theme_bw()+
+    #geom_density(data=hier_pF,aes(x=hier_pF),alpha = 1,linetype='solid',color=cols[1],size=1.25)+
+    labs(x="Redds per Female",y="Kernel Density")+
+    aes(xmin=0,xmax=1) 
+  print(p2)
+
+p3<-grid.arrange(p, p2, nrow = 1)
+ggsave(file.path(results.dir,subDir,"RpF_pF.pdf"),
+       plot=p3,
+       width = 6.5, height = 3, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+```
+
+
+
+
+
+
+
+
+# Summarize Results (JAGS)
+```{r }
+
+modeldate="2020-08-04"
+
+load_jagsfit<-function(modeldate){
+  subDir<-paste("Coho","Results","allredds_ss",modeldate,sep="_")
+  setwd(file.path(results.dir, subDir))
+  print(getwd())
+  load(paste("modelfit",model.file,modeldate,".rda",sep="_"))
+}
+
+#load_jagsfit(modeldate=modeldate)
+
+#name columns by GRTSpop
+GRTSpop_params<-c("Adults","M_ad","UM_ad","pF","pM")
+for(i in 1:length(GRTSpop_params)){
+  jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==GRTSpop_params[i]]<-lapply(jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==GRTSpop_params[i]], function(x) {colnames(x) <- rownames(jagsdat$Y); x})
+}
+
+jagsfit$BUGSoutput$sims.list$Adults<-jagsfit$BUGSoutput$sims.list$M_ad+jagsfit$BUGSoutput$sims.list$UM_ad
+jagsfit$BUGSoutput$sims.list$pM<-jagsfit$BUGSoutput$sims.list$M_ad/(jagsfit$BUGSoutput$sims.list$M_ad+jagsfit$BUGSoutput$sims.list$UM_ad)
+#=============================
+#Print out results by GRTS pop
+#=============================
+for(i in 1:length(GRTSpop_params)){
+  sims<-jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==GRTSpop_params[i]]
+  for(j in 1:yrs){
+    temp<-NULL
+    temp<-apply(sims[[1]][,,j],2,function(x) quantile(x,c(0.025,0.5,0.975)))
+    temp<-temp[,colnames(temp)!=""]
+    means<-NULL
+    means<-colMeans(sims[[1]][,,j])
+    means<-means[names(means)!=""]
+    sd<-NULL
+    sd<-apply(sims[[1]][,,j],2,sd)
+    sd<-sd[names(sd)!=""]
+    temp<-data.frame(means,sd,t(temp))
+    if(!names(sims)[1]%in%c("pM","pF","p_index","")){temp<-round(temp)}
+    if(names(sims)[1]%in%c("pM","pF","p_index")){temp<-round(temp,3)}
+    #=====================
+    #combine years results
+    #=====================
+    temp$Population<-rownames(temp)
+    temp$Year<-years[j]
+    temp<-temp[,c(c(dim(temp)[2]-1),dim(temp)[2],1:c(dim(temp)[2]-2))]
+    colnames(temp)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    if(j==1){temp2<-temp}else{temp2<-data.frame(rbind(temp2,temp))}
+    colnames(temp2)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    subDir<-paste("Coho","Results","allredds_ss",modeldate,sep="_")
+    setwd(file.path(home.dir,results.dir, subDir))
+    #======================
+    # Year specific Results
+    #======================
+    colnames(temp)<-c("Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    # if (file.exists(subDir)){
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # } else {
+    #   dir.create(file.path(results.dir, subDir,years[j]))
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # }
+    # write.csv(temp,paste(years[j],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = T)
+    
+  }
+  write.csv(temp2,paste(years[1],"_",years[length(years)],"_Coho_GRTSpop_",names(sims)[1],".csv",sep=""),row.names = F)
+}
+
+
+
+#==========
+#TRT params
+#==========
+TRTpop_params<-c("M_ad","UM_ad") #pM, Adult total
+TRTpops<-data.frame(read.csv(paste(home.dir,csv.data.dir,frame_file.name,sep="/")))$TRT_Population
+TRTresults<-list(NULL)
+for(i in 1:length(TRTpop_params)){
+  temp<-NULL
+  temp<-lapply(jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==TRTpop_params[i]], function(x) {colnames(x) <-TRTpops; x})
+  TRTresults[[i]]<-array(NA,dim=c(jagsfit$BUGSoutput$n.sims,length(unique(TRTpops)),yrs))
+  dimnames(TRTresults[[i]])[[3]]<-years
+  names(TRTresults)[i]<-TRTpop_params[i]
+  for (j in 1:yrs){
+    TRTresults[[i]][,,j]<-t(rowsum(t(temp[[1]][,,j]), group = colnames(temp[[1]][,,j]), na.rm = T))
+    dimnames(TRTresults[[i]])[[2]]<-unique(TRTpops[order(TRTpops)])
+    
+  }
+}
+TRTresults$Adults<-TRTresults$M_ad+TRTresults$UM_ad
+TRTresults$pM<-TRTresults$M_ad/(TRTresults$M_ad+TRTresults$UM_ad)
+
+for(i in 1:length(names(TRTresults))){
+  for(j in 1:yrs){
+    temp<-NULL
+    temp<-apply(TRTresults[[i]][,,j],2,function(x) quantile(x,c(0.025,0.5,0.975)))
+    temp<-temp[,colnames(temp)!=""]
+    means<-NULL
+    means<-colMeans(TRTresults[[i]][,,j])
+    means<-means[names(means)!=""]
+    sd<-NULL
+    sd<-apply(TRTresults[[i]][,,j],2,sd)
+    sd<-sd[names(sd)!=""]
+    temp<-data.frame(means,sd,t(temp))
+    if(!names(TRTresults)[i]%in%c("pM")){temp<-round(temp)}
+    if(names(TRTresults)[i]%in%c("pM")){temp<-round(temp,3)}
+    #=====================
+    #combine years results
+    #=====================
+    temp$Population<-rownames(temp)
+    temp$Year<-years[j]
+    temp<-temp[,c(c(dim(temp)[2]-1),dim(temp)[2],1:c(dim(temp)[2]-2))]
+    colnames(temp)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    if(j==1){temp2<-temp}else{temp2<-data.frame(rbind(temp2,temp))}
+    colnames(temp2)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    subDir<-paste("Coho","Results","allredds_ss",modeldate,sep="_")
+    setwd(file.path(home.dir,results.dir, subDir))
+    #======================
+    # Year specific Results
+    #======================
+    colnames(temp)<-c("Mean","sd","lower 95% CI", "Median","Upper 95%CI")
+    # if (file.exists(subDir)){
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # } else {
+    #   dir.create(file.path(results.dir, subDir,years[j]))
+    #   setwd(file.path(results.dir, subDir,years[j]))
+    # }
+    # write.csv(temp,paste(years[j],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = T)
+    
+  }
+  write.csv(temp2,paste(years[1],"_",years[length(years)],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = F)
+}
+
+
+#==============================
+#Cowlitz Report Plots
+#======================
+#set year
+# yr=10
+# 
+# #redd density for the Lower Cowlitz
+# pdf(paste("Redds per mile in Lower Cowlitz GRTS reaches ",years[yr],".pdf",sep=""))
+# library(RColorBrewer)
+# cols<-brewer.pal(5,name="BuGn")
+# par(new=F)
+# xvals<-c(0:100)
+# max.x<-50
+# lambda<-matrix(NA,dim(jagsfit$BUGSoutput$sims.list$pp)[1],length(xvals))
+# for(i in 1:dim(jagsfit$BUGSoutput$sims.list$pp)[1]){
+#   lambda[i,1:length(xvals)]<-dnbinom(xvals,prob=jagsfit$BUGSoutput$sims.list$pp[i,10,yr],size=jagsfit$BUGSoutput$sims.list$rr[i,10])
+#   lambda[i,1:length(xvals)]<-lambda[i,1:length(xvals)]/max(lambda[i,1:length(xvals)])
+# }
+# lambda_mu<-apply(lambda,2,mean)
+# lambda_quants<-t(apply(lambda,2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975))))
+# plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Distribution of Redds per Mile \n in GRTS Reaches below weirs")
+# #matlines(y=lambda_quants,x=matrix(rep(xvals,5),nrow=length(xvals),ncol=5),col=brewer.pal(5,name="RdYlBu"),lwd=2,lty=1)
+# for(i in 1:2){
+#   polygon(x=c(xvals,rev(xvals)),y=c(lambda_quants[,i],rev(lambda_quants[,6-i])),col=cols[i+1],lty="blank")
+# }
+# lines(x=xvals,y=lambda_quants[,3],lwd=2)
+# axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
+# axis(2,seq(from=0,to=1,by=(1/4)),las=2)
+# dev.off()
+# 
+# pdf(paste("Lower Cowlitz mean redd density ",years[yr],".pdf",sep=""))
+# mu_den<-density(jagsfit$BUGSoutput$sims.list$mu[,10,yr])
+# plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Mean Redds per Mile")
+# lines(y=(mu_den$y/max(mu_den$y)),x=mu_den$x,lwd=2,col=cols[4])
+# axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
+# axis(2,seq(from=0,to=1,by=(1/4)),las=2)
+# dev.off()
+# 
+# jagsdat$y[10,,yr]
+# 
+# write.csv(data.frame(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10]),paste("lower Cowlitz_pp_rr_",years[yr],".csv",sep=""),row.names = F)
+# plot(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10])
+
+
+
+# ===============
+# Cowlitz Results
+# ==============
+#set year
+#yr=max(years)
+colnames(jagsfit$BUGSoutput$sims.list$Adults)<-GRTSdat$GRTS_Population
+CowlitzNames<-c("Lower Cowlitz",
+                "Delameter_Above Weir",
+                "Lacamas_Above Weir",
+                "Olequa_Above Weir",
+                "Ostrander_Above Weir"
+)
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  LowerCowlitz_DIP_Adults<-apply(jagsfit$BUGSoutput$sims.list$Adults[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
+  #plot(density(LowerCowlitz_DIP_Adults))
+  Cowlitz_Adults<-apply(data.frame(LowerCowlitz_DIP_Adults,jagsfit$BUGSoutput$sims.list$Adults[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]),2,function(x) c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_Adults<-data.frame(t(Cowlitz_Adults),i+2009)
+  Cowlitz_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_Adults)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_Adults)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,paste("Cowlitz_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
+
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  LowerCowlitz_DIP_NOR_Adults<-apply(jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
+  #plot(density(LowerCowlitz_DIP_NOR_Adults))
+  Cowlitz_NOR_Adults<-apply(data.frame(LowerCowlitz_DIP_NOR_Adults,jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_NOR_Adults<-data.frame(t(Cowlitz_NOR_Adults),i+2009)
+  Cowlitz_NOR_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_NOR_Adults)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_NOR_Adults)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,paste("Cowlitz_NOR_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
+
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  LowerCowlitz_DIP_HOR_Adults<-apply(jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
+  #plot(density(LowerCowlitz_DIP_NOR_Adults))
+  Cowlitz_HOR_Adults<-apply(data.frame(LowerCowlitz_DIP_HOR_Adults,jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_HOR_Adults<-data.frame(t(Cowlitz_HOR_Adults),i+2009)
+  Cowlitz_HOR_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_HOR_Adults)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_HOR_Adults)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,paste("Cowlitz_HOR_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
+
+Cowlitz_Results<-NULL
+for(i in 1:yrs){
+  pM<-data.frame(jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]/(jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]+jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]))
+  LowerCowlitz_DIP_Adults<-apply(jagsfit$BUGSoutput$sims.list$Adults[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
+  LowerCowlitz_DIP_HOR_Adults<-apply(jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
+  LowerCowlitz_DIP_pM<-LowerCowlitz_DIP_HOR_Adults/LowerCowlitz_DIP_Adults
+  Cowlitz_pM<-apply(data.frame(LowerCowlitz_DIP_pM,pM),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+  Cowlitz_pM<-data.frame(t(Cowlitz_pM),i+2009)
+  Cowlitz_pM$Population<-c("Lower Cowlitz DIP",CowlitzNames)
+  colnames(Cowlitz_pM)[6:8]<-c("mean","sd","year")
+  Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_pM)
+  rownames(Cowlitz_Results)<-NULL
+}
+write.csv(Cowlitz_Results,paste("Cowlitz_pM_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
+
+#weir efficiency
+WC<-jagsdat$n1[colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames[2:5],yr]
+WC<-t(matrix(rep(WC,jagsfit$BUGSoutput$n.sims),ncol=jagsfit$BUGSoutput$n.sims,nrow=4))
+WE<-WC/jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames[2:5],yr]
+WE<-apply(WE,2,function(x) c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
+rownames(WE)[6:7]<-c("mean","sd")
+WE<-t(WE)
+rownames(WE)<-CowlitzNames[2:5]
+write.csv(WE,paste("Cowlitz_Tribs_Weir_Efficiency_",years[yr],".csv",sep=""))
+
+
+#=============================
+#new plots 12.16.2019
+#====================
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(scales)
+library(gridExtra)
+
+
+poporder<-unique(as.character(GRTSpops$TRT_Population))
+poporder<-c(poporder[!poporder%in%c("",NA)],"LCR ESU")
+TRT_miles<-data.frame(GRTSpops%>%group_by(TRT_Population)%>%summarise(TRT_F_miles=sum(F_miles)))
+TRT_miles<-TRT_miles[!TRT_miles$TRT_Population%in%c("",NA),]
+TRT_miles<-TRT_miles%>%group_by(TRT_Population)%>%adorn_totals("row",name="LCR ESU")
+
+UM_ad_results<-data.frame(melt(apply(TRTresults$UM_ad,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+colnames(UM_ad_results)<-c("Quantile","Population","Year","UM_ad")
+UM_ad_results<-UM_ad_results[!UM_ad_results$Population%in%c("",NA),]
+UM_ad_results$Population<-as.character(UM_ad_results$Population)
+UM_ESUtot<-data.frame(melt(apply(apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+UM_ESUtot$Population<-"LCR ESU"
+UM_ESUtot$Population<-as.character(UM_ESUtot$Population)
+colnames(UM_ESUtot)<-c("Quantile","Year","UM_ad","Population")
+UM_ad_results<-bind_rows(UM_ad_results,UM_ESUtot)
+UM_ad_density_results<-merge(UM_ad_results,TRT_miles,by.x="Population",by.y="TRT_Population")
+UM_ad_results<-UM_ad_results%>%spread(Quantile,UM_ad)
+UM_ad_results$Origin<-"Wild"
+UM_ad_density_results$Density<-UM_ad_density_results$UM_ad/(UM_ad_density_results$TRT_F_miles*1.60934)
+UM_ad_density_results<-UM_ad_density_results%>%select(Population, Year, Quantile, Density)%>%spread(Quantile,Density)
+UM_ad_density_results$Origin<-"Wild"
+
+M_ad_results<-data.frame(melt(apply(TRTresults$M_ad,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+colnames(M_ad_results)<-c("Quantile","Population","Year","M_ad")
+M_ad_results<-M_ad_results[!M_ad_results$Population%in%c("",NA),]
+M_ad_results$Population<-as.character(M_ad_results$Population)
+M_ESUtot<-data.frame(melt(apply(apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+M_ESUtot$Population<-"LCR ESU"
+M_ESUtot$Population<-as.character(M_ESUtot$Population)
+colnames(M_ESUtot)<-c("Quantile","Year","M_ad","Population")
+M_ad_results<-bind_rows(M_ad_results,M_ESUtot)
+M_ad_density_results<-merge(M_ad_results,TRT_miles,by.x="Population",by.y="TRT_Population")
+M_ad_results<-M_ad_results%>%spread(Quantile,M_ad)
+M_ad_results$Origin<-"Hatchery"
+M_ad_density_results$Density<-M_ad_density_results$M_ad/(M_ad_density_results$TRT_F_miles*1.60934)
+M_ad_density_results<-M_ad_density_results%>%select(Population, Year, Quantile, Density)%>%spread(Quantile,Density)
+M_ad_density_results$Origin<-"Hatchery"
+
+
+pM_results<-melt(apply(TRTresults$pM,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975))))
+colnames(pM_results)<-c("Quantile","Population","Year","pM")
+pM_results<-pM_results[!pM_results$Population%in%c("",NA),]
+pM_results$Population<-as.character(pM_results$Population)
+M_ESUtot<-apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum)
+UM_ESUtot<-apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum)
+pM_ESUtot<-data.frame(melt(apply(M_ESUtot/(M_ESUtot+UM_ESUtot),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
+pM_ESUtot$Population<-"LCR ESU"
+pM_ESUtot$Population<-as.character(pM_ESUtot$Population)
+colnames(pM_ESUtot)<-c("Quantile","Year","pM","Population")
+pM_results<-bind_rows(pM_results,pM_ESUtot)
+pM_results<-pM_results%>%spread(Quantile,pM)
+
+
+Abundance_results<-data.frame(rbind(M_ad_results,UM_ad_results))
+
+Density_results<-data.frame(rbind(M_ad_density_results,UM_ad_density_results))
+write.csv(Density_results,"Density_Results.csv")
+
+Recovery_Goals<-data.frame(read.csv(paste(csv.data.dir,"TRT_Population_Goals.csv",sep="/")))
+
+Abundance_results<-merge(Abundance_results,Recovery_Goals,by.x="Population",by.y="TRT_Population")
+
+NOR<-data.frame(Abundance_results%>%filter(Origin=="Wild")%>%group_by(Population)%>%summarise(Recovery.Goal=max(Recovery.Goal),med=median(X50.),min=min(X50.),max=max(X50.)))
+NOR_goal<-data.frame(Abundance_results%>%filter(Origin=="Wild" & X50.>Recovery.Goal)%>%count(Population))
+NOR_Density<-data.frame(Density_results%>%filter(Origin=="Wild")%>%group_by(Population)%>%summarise(med.NOR_Density=median(X50.),min.NOR_Density=min(X50.),max.NOR_Density=max(X50.)))
+HOR<-data.frame(Abundance_results%>%filter(Origin=="Hatchery")%>%group_by(Population)%>%summarise(med=median(X50.),min=min(X50.),max=max(X50.)))
+pM<-data.frame(pM_results%>%group_by(Population)%>%summarise(med.PHOS=median(`50%`),min.pHOS=min(`50%`),max.pHOS=max(`50%`)))
+
+Results_Table1<-merge(NOR,HOR,by="Population",suffixes = c(".NOR",".HOR"))
+Results_Table1<-merge(Results_Table1,NOR_Density,by="Population")
+Results_Table1<-merge(Results_Table1,pM,by="Population")
+Results_Table1<-merge(Results_Table1,NOR_goal,all=TRUE)
+write.csv(Results_Table1,"Results_Table1.csv",row.names = F)
+
+#unmarked plot
+p<-ggplot(arrange(transform(UM_ad_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."))) +
+  geom_line(size=1)+
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
+  facet_wrap(~Population,scales="free") +
+  aes(ymin=0) +
+  labs(x="Year",y="Spawner Abundance") +
+  theme_bw()
+  
+print(p)
+ggsave("UM_ad.pdf",
+       plot=p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+#unmarked and marked plot
+p<-ggplot(arrange(transform(Abundance_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("X50."),color=as.name("Origin"))) +
+  geom_line(size=1)+
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5."),fill=as.name("Origin")), alpha=0.25,color=NA) + 
+  facet_wrap(~Population,scales="free") +
+  geom_hline(data = arrange(transform(Abundance_results,Population=factor(Population,levels=poporder))), aes(yintercept = Recovery.Goal,group = Population), size=1,linetype = "dashed",color="black")+
+  aes(ymin=0) +
+  labs(x="Year",y="Spawner Abundance") +
+  theme_bw()
+
+print(p)
+ggsave("Abundance.pdf",
+       plot=p,
+       width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+#phos plot
+p<-ggplot(arrange(transform(pM_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("X50."))) +
+  geom_line(size=1)+
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
+  facet_wrap(~Population) +
+  aes(ymin=0,ymax=1) +
+  labs(x="Year",y="Proportion Hatchery Origin Spawners") +
+  theme_bw()
+
+print(p)
+ggsave("pM.pdf",
+       plot=p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+#density plot
+p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."),color=as.name("Origin"))) +
+  geom_line(size=1)+
+  facet_wrap(~Population) + #,scales ="free"
+  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5."),fill=as.name("Origin")), alpha=0.25,color=NA) + 
+  #ylim(0.0,200) +
+  # #scale_y_log10(breaks=c(0.001,0.01,0.1,1,10,100),labels=c(0.001,0.01,0.1,1,10,100),limits = c(.001,200),expand=c(0,0)) +
+  # #scale_y_log10()+
+  scale_y_log10(limits = c(0.001, 180),
+                labels = trans_format("log10", math_format(10^.x)),
+                breaks=trans_breaks("log10", function(x) 10^x, n=4)) +
+  theme_bw() +
+  theme(panel.grid.minor = element_line(color="grey80", linetype="solid"), panel.grid.major = element_line(color="grey80", linetype="solid")) +
+  annotation_logticks(base = 10)+
+  labs(x="Year",y="Spawners per Km")
+
+print(p)
+ggsave("Density.pdf",
+       plot=p,
+       width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+#
+Recovery_Goals<-merge(Recovery_Goals,TRT_miles)
+Recovery_Goals<-Recovery_Goals[!is.na(Recovery_Goals$Recovery.Goal) & Recovery_Goals$TRT_Population!="LCR ESU",]
+Recovery_Goals$Recovery.Goal<-as.numeric(Recovery_Goals$Recovery.Goal)
+p<-ggplot(Recovery_Goals,aes(x=TRT_F_miles*1.60934, y=Recovery.Goal,color=Recovery.Designation)) +
+   geom_point(size=2)+
+  labs(x="Estimated Habitat Extent (km)",y="Recovery Goal") +
+  #scale_y_log10()+
+  #scale_x_log10()+
+  aes(ymin=100) +
+  theme_classic()
+print(p)
+ggsave("Recovery Goal vs Kilometers.pdf",
+       plot=p,
+       width = 4, height = 3, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+
+
+
+ilogit<-function(x){exp(x)/(1+exp(x))}
+hier_pF<-ilogit(rnorm(6400,jagsfit$BUGSoutput$sims.list$pF_mu,jagsfit$BUGSoutput$sims.list$pF_sd))
+params<-data.frame(matrix(c(
+quantile(jagsfit$BUGSoutput$sims.list$RpF_mu,c(0.025,0.25,0.5,0.75,0.975))
+,quantile(hier_pF,c(0.025,0.25,0.5,0.75,0.975))
+,quantile(jagsfit$BUGSoutput$sims.list$rho[,1],c(0.025,0.25,0.5,0.75,0.975))
+),nrow = 5,ncol=3)
+)
+
+library(RColorBrewer)
+cols<-brewer.pal(n=3,name = "Pastel1")
+# par(mfrow=c(3,1),mar=c(2,10,2,5))
+# boxplot(params[,1],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[1],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("Redds Per Female", "Redds per Female", "rho"),las=2)
+# boxplot(params[,2],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[2],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("Proportion Female", "Redds per Female", "rho"),las=2)
+# boxplot(params[,3],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[3],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("rho", "Redds per Female", "rho"),las=2)
+
+
+# par(mfrow=c(3,1),mar=c(2,10,2,5))
+# boxplot(params[,1],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[1],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("Redds Per Female", "Redds per Female", "rho"),las=2)
+# matplot(apply(jagsfit$BUGSoutput$sims.list$pF,3L,c))
+# axis(2,at=c(1:3),labels = c("Proportion Female", "Redds per Female", "rho"),las=2)
+# boxplot(params[,3],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[3],ylim=c(0,1))
+# axis(2,at=c(1:3),labels = c("rho", "Redds per Female", "rho"),las=2)
+
+
+indexes<-grep("pF\\[",colnames(jagsfit$BUGSoutput$sims.matrix))
+df<-melt(jagsfit$BUGSoutput$sims.matrix[,indexes])
+
+hier_pF<-data.frame(hier_pF)
+hier_pF$X2<-"hier_pF"
+p<-ggplot(data = df, aes(x=value, group=X2)) + 
+  geom_density(alpha = 0.1,fill='black', linetype='blank') +
+  theme_bw()+
+  geom_density(data=hier_pF,aes(x=hier_pF),alpha = 1,linetype='solid',color=rgb(0.2,0.2,0.6,1),size=1.25)+
+  labs(x="Proportion of Females",y="Kernel Density") +
+  aes(xmin=0.25,xmax=0.75) 
+  print(p)
+
+  p2<-ggplot(data = data.frame(jagsfit$BUGSoutput$sims.list$RpF_mu))+ 
+    geom_density(aes(x=jagsfit.BUGSoutput.sims.list.RpF_mu),alpha = 0.4,fill='black') +
+    theme_bw()+
+    #geom_density(data=hier_pF,aes(x=hier_pF),alpha = 1,linetype='solid',color=cols[1],size=1.25)+
+    labs(x="Redds per Female",y="Kernel Density")+
+    aes(xmin=0,xmax=1) 
+  print(p2)
+
+p3<-grid.arrange(p, p2, nrow = 1)
+ggsave("RpF_pF.pdf",
+       plot=p3,
+       width = 6.5, height = 3, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+```
+
+
+# To-Do List
+This section lists future possible code upgrades
+
+Higher Priority
+1. consider other RpF parameterizations
+2. Check effects of fixed reach LAB in 2014 and 2017...right now all its data is in  the lower cowlitz and not split with Lacamas
+3. apply index sex ratio and mark status to adults separately!
+4. apply phos at the reach scale
+5. change process error variance to be pop specific for PM
+
+Lower priority
+6. decide if nest pops effect on RpF and neg bin shape params
+7. ADD IN wind/upper gorge
+8. see if we can get Cedar Creek MR data fixed
+9. deal with bias of missed surveys 
+10. Grays surveys are count only so double counting index redds!!!!
+11. mainstem nf lewis, toutle, cowlitz missing
+12. MAG redd sch. info 2010-2012; tiugh may not be possible

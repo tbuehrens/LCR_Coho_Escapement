@@ -1,0 +1,190 @@
+data{
+    for(i in 1:(pops[1]-1)){
+        for(j in (i+1):pops[1]){
+            Rmat[i,j]<-0
+            Rmat[j,i]<-0
+        }
+    }
+    for(i in 1:pops[1]){
+        Rmat[i,i] <- 1
+    }
+}
+model
+{
+    for(yr in 1:yrs){
+        for (g in 1:good_MR_data_index[yr]){
+            #MR Likelihoods
+            n1[good_MR_data[g,yr],yr] ~ dpois(p[good_MR_data[g,yr],yr]*Adults[good_MR_data[g,yr],yr])
+            m[good_MR_data[g,yr],yr] ~ dbin(p[good_MR_data[g,yr],yr],n2[good_MR_data[g,yr],yr])
+            #proportion marked (mark-recapture)
+            p[good_MR_data[g,yr],yr] ~ dbeta(0.5,0.5) 
+        }
+        #===================
+        #GRTS coho estimates
+        #===================
+        #estimate redd density (redds/mile)  
+        for (k in 1:pops_sites_index[yr]){
+        	#GRTS Redd counts
+            mu2[pops_sites[k,yr],yr]<-((1-p_index[pops_sites[k,yr],yr])*(Redd_tot[pops_sites[k,yr],yr])/(GRTS_miles[pops_sites[k,yr],yr]+mis_miles[pops_sites[k,yr],yr]))
+            pp[pops_sites[k,yr],yr]<-rr[pops_sites[k,yr]]/(rr[pops_sites[k,yr]]+mu2[pops_sites[k,yr],yr])  #pop specific rr
+            #=================================
+            for (i in 1:sites[pops_sites[k,yr],yr]){ 
+            #===========
+            #likelihoods
+            #============
+                #negative binomial redd density 
+                y[pops_sites[k,yr],i,yr] ~ dnegbin(pp[pops_sites[k,yr],yr],rr[pops_sites[k,yr]]*g[pops_sites[k,yr],i,yr]) #pop and year specific rr
+            }#end i 
+        }
+        #====================
+        #Index coho estimates
+        #====================
+        for (k in 1:pops_sites_index2[yr]){
+            mu3sum[pops_sites2[k,yr],yr]<-p_index[pops_sites2[k,yr],yr]*Redd_tot[pops_sites2[k,yr],yr] 
+        	#calc Index total redds
+ 			Y2[pops_sites2[k,yr],yr]~dpois(p_index[pops_sites2[k,yr],yr]*Redd_tot[pops_sites2[k,yr],yr] )
+        }
+        #===========================================================
+        #Calc states for all (index and GRTS) redd based likelihoods
+        #===========================================================
+        for (k in 1:pops_sites_index3[yr]){
+            Redd_tot[pops_sites3[k,yr],yr] <-Adults[pops_sites3[k,yr],yr]*pF[pops_sites3[k,yr],yr]*RpF[pops_sites3[k,yr],yr]
+            mu[pops_sites3[k,yr],yr]<-Redd_tot[pops_sites3[k,yr],yr]/F_miles[pops_sites3[k,yr],yr]
+            RpF[pops_sites3[k,yr],yr]<-RpF_mu   
+        }
+        #======================================================================================
+        #prior for p_index where both GRTS and Index and or both do not account for all habitat
+        #======================================================================================
+		for (k in 1:unk_p_index_index[yr]){
+			#prior for p_Index
+			p_index[unk_p_index[k,yr],yr] ~ dbeta(0.5,0.5) 
+		}
+        #======================================
+        #All pops total redds, adults, phos, pF
+        #======================================
+        for (k in 1:pops[yr]){
+            #proportion of females
+    	    F[k,yr] ~dbin(pF[k,yr],AS[k,yr])
+            logit(pF[k,yr]) <- max(min(logit_pF[k,yr],xi),-xi)
+            logit_pF[k,yr] ~ dnorm(pF_mu,pF_tau)     
+    	    #estimate pUM, pM not hierarchically modeled because pM is not exchangeable
+    	    H[k,yr] ~dbin(pM[k,yr],MS[k,yr])
+    	    logit(pM[k,yr]) <- max(min(logit_pM[k,yr],xi),-xi)
+    	    pUM[k,yr] <- 1-pM[k,yr]
+            #MS,US change to NOS, HOS when pHOS & pNOS calculated
+            UM_ad[k,yr] <- (1-pM[k,yr]) * Adults[k,yr] 
+    	    M_ad[k,yr] <- pM[k,yr] * Adults[k,yr] 
+    	    #Estimate Females, adults, calc males from females and adults
+            Adults[k,yr]<-exp(log_lambda[k,yr])      
+    	}#end k   
+        #=============
+		#Trap and Haul
+		#=============
+		for(k in catch_pops[1:2]){ #tilton and upper cowlitz
+			#catch likelihoods
+            log_catch_a_M_mu[k,yr] ~ dnorm(log(M_ad[k,yr]*HR_a_M[k,yr]/(1-HR_a_M[k,yr])) + pow(catch_a_M_SD[k,yr],2),catch_a_M_tau[k,yr]) #assumes catch estimate is MLE
+	        catch_a_M_tau[k,yr]<-pow(catch_a_M_SD[k,yr],-2)
+	        #harvest rate priors
+	        logit(HR_a_M[k,yr]) <- max(min(logit_HR_a_M[k,yr],xi),-xi)
+	        logit_HR_a_M[k,yr] ~ dnorm(HR_a_M_mu[k],HR_a_M_sd[k]^-2)   
+		}
+        for(k in catch_pops[1:2]){#tilton and upper cowlitz
+            #MS,US change to NOS, HOS when pHOS & pNOS calculated
+            TH_a_UM[k,yr] ~ dpois(UM_ad[k,yr])
+            TH_a_M[k,yr] ~ dpois(M_ad[k,yr]/(1-HR_a_M[k,yr]))
+        }
+        for(k in catch_pops[3:4]){#upper nf toutle and upper nf lewis
+            #MS,US change to NOS, HOS when pHOS & pNOS calculated
+            TH_a_UM[k,yr] ~ dpois(UM_ad[k,yr])
+            TH_a_M[k,yr] ~ dpois(M_ad[k,yr])
+        }
+
+	}
+	#============
+	#random walks
+	#============
+    for(yr in 2:yrs){
+        for (k in 1:pops[yr]){
+        	#proportion marked
+    	    logit_pM[k,yr] <-logit_pM[k,yr-1]+process_error[k,yr]
+            process_error[k,yr]~dnorm(0,tau_process)  
+            #f_tilde[k,yr] ~ dnorm(0, 1/1*1);  
+    	}
+        #log observed adult abundance 
+        #log_lambda[1:pops[1],yr] <- log_lambda[1:pops[1],yr-1] + L %*% f_tilde[1:pops[1],yr]
+		#f_tilde[1:pops[1],yr] ~ dmnorm(0, Rmat) 
+		f_tilde[1:pops[1],yr-1] ~ dmnorm(zeros, inv_Sigma_mu_process[1:pops[1],1:pops[1]]) 
+		log_lambda[1:pops[1],yr] <- log_lambda[1:pops[1],yr-1] + f_tilde[1:pops[1],yr-1] #RW
+    }
+    #===========
+    #Cov Matrix
+    #===========
+    # for(i in 1:(pops[1]-1)){
+    #     for(j in (i+1):pops[1]){
+    #         L[i,j]<-(rho[TH_pops[i]]*rho[TH_pops[j]])^0.5  #TH pops is 2 if TH
+    #         L[j,i]<-0
+    #     }
+    # }
+    # for(i in 1:pops[1]){
+    #     L[i,i]<-sigma_mu_process[TH_pops[i]]#separate process error for TH pops
+    # }
+    #wishhart version
+    inv_Sigma_mu_process ~ dwish(Rmat[1:pops[1],1:pops[1]], pops[1] )
+    Sigma_mu_process <-inverse(inv_Sigma_mu_process)
+    for (i in 1:pops[1]) { 
+        sigma_mu_process[i] <- sqrt(Sigma_mu_process[i,i])
+        for (j in 1:pops[1] ) {
+            rho[i,j] <- (Sigma_mu_process[i,j]/ (sigma_mu_process[i]*sigma_mu_process[j]))
+        } 
+    }
+    #============
+    #MAG
+    #============
+    #ABERNATHY CREEK - redd timing by survey schedule (based on reaches surveyed every week)
+    for(yr in sch_years){
+	    for (i in 1:good_sch_index[IMWpops[1],yr]){
+	        sch[IMWpops[1],good_sch[IMWpops[1],i,yr],yr] ~ dbin(p.sch[good_sch[IMWpops[1],i,yr],yr],Y2[IMWpops[1],yr])
+	    	p.sch[good_sch[IMWpops[1],i,yr],yr] ~ dbeta(0.5,0.5) 
+	    }
+	    for(k in IMWpops[2:3]){
+	    	for (i in 1:good_sch_index[k,yr]){
+	            sch[k,good_sch[k,i,yr],yr] ~ dpois(p.sch[good_sch[IMWpops[1],i,yr],yr]*pIMW[k,i,yr]*mu3sum[k,yr])
+                alpha[k,i,yr]~dgamma(0.001,0.001)T(1,100)
+	    	}
+            pIMW[k,1:good_sch_index[k,yr],yr]~ddirch(alpha[k,1:good_sch_index[k,yr],yr])
+    	}
+	}
+    #===========
+    #Hyperpriors
+    #===========
+    #dispersion of redds per mile
+    sigma_disp_mu ~	dt(0,2.5^-2,1) T(0,)
+    sigma_disp_sigma ~	dt(0,0.5^-2,1) T(0,)
+    #RpF mean
+    RpF_mu~dgamma(3,4)
+    #prop Females
+    pF_mu~dnorm(logit(0.45),1)
+    pF_sd~dt(0,1/(2.5*2.5),1) T(0,)
+    pF_tau<-1/(pF_sd*pF_sd)
+    #prop marks
+    sigma_process~dt(0,1/(2.5*2.5),1)T(0,)
+    tau_process<-pow(sigma_process,-2)
+    #mu 
+    # sigma_mu_process[1]~dt(0,1/(2.5*2.5),1) T(0,) 
+    # sigma_mu_process[2]~dt(0,1/(2.5*2.5),1) T(0,) # fix at 1
+    # rho[1]~dunif(0,1)
+    # rho[2]<-0
+    for(k in 1:pops[1]){
+        #pop_specific dispersion parameter for neg bin.
+        rr[k] <- pow(sigma_disp[k],-2)
+    	sigma_disp[k] ~ dlnorm(log(sigma_disp_mu),pow(sigma_disp_sigma,-2))
+        #starting state for p_marked
+        logit_pM[k,1]~dnorm(0,0.001)
+        #starting state for log_mean_abundance
+        log_lambda[k,1] ~ dnorm(log(lambda_est1[k]),(1/2*2)) 
+    }
+    for(k in catch_pops){
+        HR_a_M_mu[k]~dnorm(0,0.01)
+        HR_a_M_sd[k]~dt(0,1/(2.5*2.5),1) T(0,)
+    }
+}
