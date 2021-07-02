@@ -108,14 +108,14 @@ stan_model.file<-"CohoEscapement_Model_6_25_2021.stan"
 
 #model fitting
 fit_JAGS = FALSE
-fit_Stan = FALSE 
+fit_Stan = TRUE
 
 #HMC params (only applies to stan model; you need to manually tweak for JAGS in Jagsfit function)
 chains=4
 thin=1
-burn=100
-iter=200
-control = list(adapt_delta = 0.95)
+burn=1000
+iter=2000
+control = list(adapt_delta = 0.8, max_treedepth = 12)
 ```
 
 # Load & Combine Data for Old JAGs Model
@@ -817,7 +817,7 @@ catch_a_M_mu_dat<-jagsdat$log_catch_a_M_mu%>%
   filter(!is.na(catch_a_M_mu) & catch_a_M_mu > 0)%>%
   left_join(catch_a_M_SD_dat, by = c("crc_pops","crc_years_real"))%>%
   left_join(years%>%
-              as.tibble()%>%
+              as_tibble()%>%
               rownames_to_column()%>%
               rename(crc_years=rowname,crc_years_real=value)%>%
               mutate(crc_years_real=as.character(crc_years_real)),
@@ -905,7 +905,8 @@ standat<-list(
 ```
 #Fit Stan Model
 
-```{r fit Stan model, message = FALSE, warning = FALSE,results = "hide"}
+```{r fit Stan model} 
+#,message = FALSE, warning = FALSE,results = "hide"
 #======================
 #create final data folder
 #=====================
@@ -921,32 +922,19 @@ if(fit_Stan == TRUE){
   #===========
   # Fit Model
   #===========
-  # stanfit<-sampling(object=model
-  #                   ,data=standat
-  #                   ,cores=chains
-  #                   ,chains = chains
-  #                   ,iter = iter
-  #                   ,warmup= burn
-  #                   ,thin = thin
-  #                   ,control=control
-  #                   ,verbose=F
-  #                   ,open_progress=F
-  #                   ,show_messages=F
-  #                   ,algorithm ="NUTS"
-  #       )
   print(paste0("Start Time = ",Sys.time()))
   stanfit<-sampling(object=model
                     ,data=standat
-                    ,cores=4
-                    ,chains = 4
-                    ,iter = 2000
-                    ,warmup= 1000
-                    ,thin = 1
-                    ,control=list(adapt_delta=0.9)#, max_treedepth = 12)
-                    # ,verbose=F
-                    # ,open_progress=F
-                    # ,show_messages=F
-                    # ,algorithm ="NUTS"
+                    ,cores=chains
+                    ,chains = chains
+                    ,iter = iter
+                    ,warmup= burn
+                    ,thin = thin
+                    ,control=control
+                    #,verbose=F
+                    #,open_progress=F
+                    #,show_messages=F
+                    #,algorithm ="NUTS"
         )
   saveRDS(stanfit,file.path(results.dir,subDir,"stanfit.RDS"))
   summary<-summary(stanfit)$summary
