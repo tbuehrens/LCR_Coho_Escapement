@@ -8,6 +8,7 @@ library(brms)
 
 
 f_year<-2020 #this is the year we want to predict prelim escapement for
+data.dir<-"final data"
 #===========================
 #Data update links and files
 #===========================
@@ -19,7 +20,7 @@ f_year<-2020 #this is the year we want to predict prelim escapement for
 # cowlitz ...open 10 year table https://www.mytpu.org/community-environment/fish-wildlife-environment/cowlitz-fish-report/
 # washougal get the type N adult Hatchery total: https://wdfw.wa.gov/fishing/management/hatcheries/escapement#weekly-reports
 
-dat<-read_csv("cohocorr.csv")%>%
+dat<-read_csv(file.path(data.dir,"cohocorr.csv"))%>%
   mutate_at(.vars=c("Bonneville.total","Willamette.total", "Clackamas.w", "Cowlitz.barrier.total", "Washougal.hatchery.late.h"),.funs=function(x) c(scale(log(x))))
 
 knots<-length(unique(dat$Yr))-1
