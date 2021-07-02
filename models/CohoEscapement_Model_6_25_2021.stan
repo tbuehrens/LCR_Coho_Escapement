@@ -89,7 +89,7 @@ parameters{
   //pop-specfic Harvest Rate random effects 
   vector[T*n_crc_pops] eps_HR;
   real<lower=0> sigma_HR;
-  real<lower=0,upper=1> mu_HR;
+  vector<lower=0,upper=1>[n_crc_pops] mu_HR;
 }
 transformed parameters{
   //fish density
