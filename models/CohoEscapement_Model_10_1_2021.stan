@@ -87,7 +87,7 @@ parameters{
   //P_Index_both
   vector<lower=0,upper=1>[n_grts_and_index] p_Index_both;
   //pop-specfic Harvest Rate random effects 
-  vector[T*n_crc_pops] eps_HR;
+  matrix[T,n_crc_pops] eps_HR;
   real<lower=0> sigma_HR;
   vector<lower=0,upper=1>[n_crc_pops] mu_HR;
 }
@@ -124,8 +124,10 @@ transformed parameters{
   }
   //pF
   pF = to_matrix(inv_logit(logit(mu_pF) + eps_pF * sigma_pF),T,P,2);
-  //HR
-  HR_a_M =  to_matrix(inv_logit(logit(mu_HR) + eps_HR * sigma_HR), T,n_crc_pops,2);
+  //HR (hierarchical across years)
+  for(p in 1:n_crc_pops){
+    HR_a_M[1:T,p] = inv_logit(logit(mu_HR[p]) + eps_HR[1:T,p] * sigma_HR);
+  }
   //Adults
   Adults = exp(log_lambda + log(F_miles));
   //Redds
@@ -172,7 +174,7 @@ model{
   //HR
   sigma_HR ~ cauchy(0,cauchy_scale);
   mu_HR ~ beta(0.5,0.5);
-  eps_HR ~ std_normal();
+  to_vector(eps_HR) ~ std_normal();
   //RpF
   RpF ~ lognormal(0,1);
   //p_MR (mark-recapture prob of capture)

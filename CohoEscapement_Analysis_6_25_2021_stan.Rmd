@@ -104,7 +104,7 @@ WriteGRTSdata<-FALSE
 
 #model files
 model.file<-"CohoEscapement_Model_6_23_2021.jags"
-stan_model.file<-"CohoEscapement_Model_6_25_2021.stan"
+stan_model.file<-"CohoEscapement_Model_10_1_2021.stan"
 
 #model fitting
 fit_JAGS = FALSE
