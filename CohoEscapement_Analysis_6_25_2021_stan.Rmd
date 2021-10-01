@@ -47,7 +47,7 @@ In addition to purr, We also need a few packages that are not included with the 
 packages_list<-c(
   "RODBC",
   "reshape",
-  "R2jags",
+  #"R2jags",
   "rstan",
   "tidyverse",
   "ggplot2",
@@ -61,7 +61,7 @@ install_or_load_pack(pack = packages_list)
 
 # User Inputs
 Here we will specify file names, directories, and make some choices regarding the processing of data and the analysis
-```{r user inputs, message = FALSE, warning = FALSE,results = "hide"}
+```{r user inputs, message=FALSE, warning=FALSE, results="hide"}
 #directories
 #home.dir<-getwd()
 #csv.data.dir<-"final data"
@@ -108,13 +108,13 @@ stan_model.file<-"CohoEscapement_Model_6_25_2021.stan"
 
 #model fitting
 fit_JAGS = FALSE
-fit_Stan = FALSE
+fit_Stan = TRUE
 
 #HMC params (only applies to stan model; you need to manually tweak for JAGS in Jagsfit function)
 chains=4
 thin=1
 burn=1000
-iter=2000
+iter=4000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 ```
 
@@ -150,14 +150,15 @@ if(UpdateGRTSdata==TRUE){
     GRTSdataprep2011(data.dir=data.dir,frame_file.name=frame_file.name)
   }
   GRTSdat<-GRTSdataprep(GRTSpops=GRTSpops,data.dir=data.dir,db.dir=db.dir,accdb.name = accdb.name,years=years[!years%in%c(2010:2011)], write=WriteGRTSdata)
+}else{
+  #========================
+  #Load GRTS Data from CSVs
+  #========================
+  GRTS_files.dir<-file.path(csv.data.dir,paste0("GRTSdata_",GRTSdat.date))
+  files<-list.files(path=GRTS_files.dir)
+  GRTS_files<-files[grep("GRTSdat",files)]
+  GRTSdat<- do.call("rbind",lapply(GRTS_files,FUN=function(files){read_csv(paste(GRTS_files.dir,"/",files,sep=""))}))
 }
-#========================
-#Load GRTS Data from CSVs
-#========================
-# GRTS_files.dir<-file.path(csv.data.dir,paste0("GRTSdata_",GRTSdat.date))
-# files<-list.files(path=GRTS_files.dir)
-# GRTS_files<-files[grep("GRTSdat",files)]
-# GRTSdat<- do.call("rbind",lapply(GRTS_files,FUN=function(files){read_csv(paste(GRTS_files.dir,"/",files,sep=""))}))
 #========================================
 #Prepare GRTS data for Analysis
 #========================================
@@ -214,7 +215,7 @@ THdat<-NULL
 for(i in 1:yrs){
   print(years[i])
   #load GRTS data
-  GRTSdat_filename<-paste0(csv.data.dir,"\\GRTSdata_",GRTSdat.date,"\\",years[i],"GRTSdat_",GRTSdat.date,".csv")
+  GRTSdat_filename<-paste0(csv.data.dir,"/GRTSdata_",GRTSdat.date,"/",years[i],"GRTSdat_",GRTSdat.date,".csv")
   GRTSdat<-data.frame(read.csv(GRTSdat_filename))
   GRTSdat<-GRTSdat[order(as.numeric(as.character(GRTSdat$Order))),]
   temp<-paste("y",1:50,sep=".")
@@ -225,19 +226,19 @@ for(i in 1:yrs){
   rownames(g)<-GRTSdat$GRTS_Population
   #load RpF data
   RpF<-NULL
-  RpF<-data.frame(read.csv(paste(csv.data.dir,"\\",RpF_file.name,sep="")))
+  RpF<-data.frame(read.csv(paste(csv.data.dir,"/",RpF_file.name,sep="")))
   RpF<-RpF[RpF$Year==years[i] & RpF$GRTS_Population%in%GRTSdat$GRTS_Population,]
   GRTSdat<-merge(RpF[,!colnames(RpF)%in%c("comments")],GRTSdat[!colnames(GRTSdat)%in%temp],all=T)
   GRTSdat[is.na(GRTSdat)]<-0
   #load Trap and Hauldata
   THdat<-NULL
-  THdat<-data.frame(read.csv(paste(csv.data.dir,"\\",traphauldata.name,sep="")))
+  THdat<-data.frame(read.csv(paste(csv.data.dir,"/",traphauldata.name,sep="")))
   THdat<-THdat[THdat$Year==years[i],]
   GRTSdat<-merge(GRTSdat,THdat[,!colnames(THdat)%in%c("comments")],all=T)
   GRTSdat<-GRTSdat[order(as.numeric(as.character(GRTSdat$Order))),]
   #load IMW redd data
   IMWdat<-NULL
-  IMWdat<-data.frame(read.csv(paste(csv.data.dir,"\\",IMWdata.name,sep="")))
+  IMWdat<-data.frame(read.csv(paste(csv.data.dir,"/",IMWdata.name,sep="")))
   IMWdat<-IMWdat[IMWdat$Year==years[i],]
   GRTSdat<-merge(GRTSdat,IMWdat,all=T)
   GRTSdat$IMW_miles[is.na(GRTSdat$IMW_miles)]<-0
