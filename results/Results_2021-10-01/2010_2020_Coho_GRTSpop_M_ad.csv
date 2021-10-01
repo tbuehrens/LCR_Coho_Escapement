@@ -1,0 +1,298 @@
+"Population","Year","Mean","sd","lower 95% CI","Median","Upper 95%CI"
+"Grays_Chinook",2010,2019,700,1016,1898,3719
+"Elochoman_Skamokawa",2010,1975,533,1162,1904,3251
+"Abernathy",2010,70,14,45,68,101
+"Abernathy_Above AFTC",2010,44,26,13,38,111
+"Mill",2010,52,36,13,43,151
+"Germany",2010,37,22,10,32,93
+"Upper Cowlitz and Cispus",2010,19330,272,18763,19337,19842
+"Tilton",2010,2077,142,1785,2082,2340
+"Lower Cowlitz",2010,380,327,41,289,1231
+"Delameter_Above Weir",2010,32,54,0,12,182
+"Lacamas_Above Weir",2010,691,1058,8,326,3375
+"Olequa_Above Weir",2010,266,244,29,197,893
+"Ostrander_Above Weir",2010,82,87,4,56,299
+"Green",2010,1679,378,1079,1630,2570
+"Upper NF Toutle",2010,0,1,0,0,2
+"NF_MS Toutle",2010,538,510,26,396,1833
+"SF Toutle",2010,471,212,191,430,1001
+"Coweeman",2010,409,172,157,382,819
+"Kalama",2010,566,256,235,511,1225
+"Lower Lewis",2010,141,152,11,95,539
+"Upper NF Lewis",2010,0,0,0,0,0
+"Cedar",2010,686,74,550,683,838
+"EF Lewis",2010,658,367,184,581,1573
+"Salmon Creek",2010,567,829,8,256,2838
+"Washougal",2010,454,195,188,419,934
+"Lower Gorge",2010,204,102,77,181,461
+"Duncan_Above Weir",2010,2,2,0,1,7
+"Grays_Chinook",2011,1763,485,1063,1682,2941
+"Elochoman_Skamokawa",2011,906,272,480,871,1529
+"Abernathy",2011,61,13,38,60,90
+"Abernathy_Above AFTC",2011,47,28,14,41,117
+"Mill",2011,47,34,12,39,128
+"Germany",2011,39,24,11,33,96
+"Upper Cowlitz and Cispus",2011,11798,253,11277,11806,12269
+"Tilton",2011,4346,230,3875,4360,4770
+"Lower Cowlitz",2011,287,290,19,197,1068
+"Delameter_Above Weir",2011,11,19,0,5,64
+"Lacamas_Above Weir",2011,622,1682,6,224,3348
+"Olequa_Above Weir",2011,85,120,4,47,393
+"Ostrander_Above Weir",2011,34,47,1,18,157
+"Green",2011,139,100,20,115,402
+"Upper NF Toutle",2011,0,0,0,0,0
+"NF_MS Toutle",2011,386,343,36,297,1263
+"SF Toutle",2011,254,197,36,202,773
+"Coweeman",2011,201,108,55,180,469
+"Kalama",2011,358,173,139,323,790
+"Lower Lewis",2011,169,126,42,138,486
+"Upper NF Lewis",2011,0,0,0,0,0
+"Cedar",2011,310,24,265,309,360
+"EF Lewis",2011,141,116,19,110,448
+"Salmon Creek",2011,194,263,5,105,893
+"Washougal",2011,74,57,11,59,222
+"Lower Gorge",2011,77,63,10,59,240
+"Duncan_Above Weir",2011,2,2,0,1,6
+"Grays_Chinook",2012,616,284,202,571,1286
+"Elochoman_Skamokawa",2012,293,154,74,265,657
+"Abernathy",2012,7,3,2,6,15
+"Abernathy_Above AFTC",2012,5,3,1,4,13
+"Mill",2012,4,3,1,3,11
+"Germany",2012,4,2,1,3,10
+"Upper Cowlitz and Cispus",2012,2233,67,2096,2235,2360
+"Tilton",2012,3636,195,3225,3647,3991
+"Lower Cowlitz",2012,462,437,37,337,1576
+"Delameter_Above Weir",2012,7,12,0,3,38
+"Lacamas_Above Weir",2012,518,2380,8,185,2648
+"Olequa_Above Weir",2012,31,48,1,16,151
+"Ostrander_Above Weir",2012,14,22,0,6,71
+"Green",2012,141,81,31,125,340
+"Upper NF Toutle",2012,0,0,0,0,0
+"NF_MS Toutle",2012,283,251,43,221,880
+"SF Toutle",2012,285,186,60,242,759
+"Coweeman",2012,140,111,19,110,443
+"Kalama",2012,262,110,116,241,526
+"Lower Lewis",2012,59,55,8,44,195
+"Upper NF Lewis",2012,134,12,112,134,158
+"Cedar",2012,86,51,19,75,212
+"EF Lewis",2012,208,144,42,173,580
+"Salmon Creek",2012,123,138,6,79,502
+"Washougal",2012,69,47,13,58,186
+"Lower Gorge",2012,88,58,18,74,241
+"Duncan_Above Weir",2012,11,7,2,10,28
+"Grays_Chinook",2013,1436,373,870,1380,2321
+"Elochoman_Skamokawa",2013,565,187,267,541,992
+"Abernathy",2013,33,13,13,31,65
+"Abernathy_Above AFTC",2013,19,8,7,18,37
+"Mill",2013,12,5,4,11,24
+"Germany",2013,14,6,5,13,28
+"Upper Cowlitz and Cispus",2013,5842,270,5284,5855,6330
+"Tilton",2013,3762,247,3240,3775,4207
+"Lower Cowlitz",2013,982,418,420,903,2026
+"Delameter_Above Weir",2013,5,5,0,3,18
+"Lacamas_Above Weir",2013,351,415,58,253,1196
+"Olequa_Above Weir",2013,17,15,2,12,55
+"Ostrander_Above Weir",2013,5,5,0,4,18
+"Green",2013,206,110,56,184,478
+"Upper NF Toutle",2013,0,0,0,0,1
+"NF_MS Toutle",2013,493,403,127,403,1352
+"SF Toutle",2013,600,331,185,529,1426
+"Coweeman",2013,566,258,190,524,1192
+"Kalama",2013,347,141,155,321,689
+"Lower Lewis",2013,247,155,67,209,646
+"Upper NF Lewis",2013,6929,84,6764,6929,7093
+"Cedar",2013,367,72,236,363,519
+"EF Lewis",2013,272,145,84,243,635
+"Salmon Creek",2013,68,88,3,38,308
+"Washougal",2013,253,111,92,236,520
+"Lower Gorge",2013,185,100,52,166,429
+"Duncan_Above Weir",2013,5,4,0,4,14
+"Grays_Chinook",2014,1898,545,1045,1828,3161
+"Elochoman_Skamokawa",2014,1760,454,1065,1697,2846
+"Abernathy",2014,135,21,97,133,179
+"Abernathy_Above AFTC",2014,70,11,50,69,93
+"Mill",2014,142,22,102,141,191
+"Germany",2014,76,13,53,75,103
+"Upper Cowlitz and Cispus",2014,22589,299,21967,22597,23148
+"Tilton",2014,4910,151,4600,4915,5190
+"Lower Cowlitz",2014,568,459,69,443,1776
+"Delameter_Above Weir",2014,19,9,6,18,40
+"Lacamas_Above Weir",2014,451,130,240,436,741
+"Olequa_Above Weir",2014,244,77,118,235,420
+"Ostrander_Above Weir",2014,37,12,17,35,64
+"Green",2014,1134,297,665,1097,1827
+"Upper NF Toutle",2014,0,0,0,0,0
+"NF_MS Toutle",2014,1606,1100,585,1355,4083
+"SF Toutle",2014,2681,1080,1280,2469,5347
+"Coweeman",2014,1367,410,728,1312,2324
+"Kalama",2014,945,367,449,877,1859
+"Lower Lewis",2014,664,376,219,579,1625
+"Upper NF Lewis",2014,8311,92,8131,8311,8493
+"Cedar",2014,201,110,49,180,469
+"EF Lewis",2014,1006,501,326,908,2269
+"Salmon Creek",2014,117,144,5,68,503
+"Washougal",2014,1435,453,751,1369,2516
+"Lower Gorge",2014,595,299,196,537,1353
+"Duncan_Above Weir",2014,12,7,2,10,27
+"Grays_Chinook",2015,445,151,195,429,784
+"Elochoman_Skamokawa",2015,258,105,98,243,508
+"Abernathy",2015,20,9,7,19,40
+"Abernathy_Above AFTC",2015,13,5,6,13,24
+"Mill",2015,17,7,6,16,34
+"Germany",2015,12,5,4,11,24
+"Upper Cowlitz and Cispus",2015,942,40,861,944,1017
+"Tilton",2015,1550,96,1340,1556,1718
+"Lower Cowlitz",2015,147,157,8,95,582
+"Delameter_Above Weir",2015,11,6,3,9,26
+"Lacamas_Above Weir",2015,29,29,3,20,106
+"Olequa_Above Weir",2015,54,43,8,43,169
+"Ostrander_Above Weir",2015,10,7,2,9,27
+"Green",2015,372,149,133,356,707
+"Upper NF Toutle",2015,0,0,0,0,0
+"NF_MS Toutle",2015,519,331,177,446,1309
+"SF Toutle",2015,1294,523,593,1189,2587
+"Coweeman",2015,316,148,104,292,669
+"Kalama",2015,159,60,74,148,304
+"Lower Lewis",2015,93,80,11,72,294
+"Upper NF Lewis",2015,3613,61,3494,3614,3735
+"Cedar",2015,90,52,20,79,218
+"EF Lewis",2015,187,122,35,160,496
+"Salmon Creek",2015,48,76,1,22,255
+"Washougal",2015,267,99,120,252,504
+"Lower Gorge",2015,58,42,9,47,168
+"Duncan_Above Weir",2015,2,2,0,2,7
+"Grays_Chinook",2016,951,276,489,925,1551
+"Elochoman_Skamokawa",2016,517,225,176,484,1047
+"Abernathy",2016,80,16,51,79,115
+"Abernathy_Above AFTC",2016,46,9,31,45,65
+"Mill",2016,53,11,34,53,78
+"Germany",2016,37,8,23,36,55
+"Upper Cowlitz and Cispus",2016,8832,253,8292,8846,9290
+"Tilton",2016,4310,231,3830,4323,4725
+"Lower Cowlitz",2016,379,357,26,270,1328
+"Delameter_Above Weir",2016,45,15,21,44,78
+"Lacamas_Above Weir",2016,11,12,1,7,43
+"Olequa_Above Weir",2016,60,67,4,39,233
+"Ostrander_Above Weir",2016,12,7,2,10,31
+"Green",2016,1971,466,1245,1904,3056
+"Upper NF Toutle",2016,0,0,0,0,1
+"NF_MS Toutle",2016,664,457,145,558,1828
+"SF Toutle",2016,835,396,305,756,1806
+"Coweeman",2016,589,307,158,531,1352
+"Kalama",2016,229,121,55,209,524
+"Lower Lewis",2016,234,162,58,196,628
+"Upper NF Lewis",2016,5681,75,5536,5680,5829
+"Cedar",2016,401,205,112,362,898
+"EF Lewis",2016,917,488,214,834,2065
+"Salmon Creek",2016,182,238,6,99,838
+"Washougal",2016,763,246,399,724,1355
+"Lower Gorge",2016,72,52,13,59,208
+"Duncan_Above Weir",2016,3,3,0,2,10
+"Grays_Chinook",2017,931,253,505,906,1496
+"Elochoman_Skamokawa",2017,317,206,52,275,820
+"Abernathy",2017,29,8,15,28,48
+"Abernathy_Above AFTC",2017,17,5,10,17,27
+"Mill",2017,20,6,10,19,33
+"Germany",2017,29,8,15,28,47
+"Upper Cowlitz and Cispus",2017,6428,170,6080,6436,6744
+"Tilton",2017,5228,155,4903,5236,5510
+"Lower Cowlitz",2017,667,494,74,554,1895
+"Delameter_Above Weir",2017,16,9,4,14,37
+"Lacamas_Above Weir",2017,4,5,0,2,17
+"Olequa_Above Weir",2017,24,25,2,17,89
+"Ostrander_Above Weir",2017,20,11,5,18,46
+"Green",2017,172,95,43,154,402
+"Upper NF Toutle",2017,0,0,0,0,0
+"NF_MS Toutle",2017,340,317,26,258,1118
+"SF Toutle",2017,189,191,15,128,704
+"Coweeman",2017,318,258,35,247,991
+"Kalama",2017,177,105,31,159,431
+"Lower Lewis",2017,162,108,40,136,429
+"Upper NF Lewis",2017,4544,67,4413,4543,4678
+"Cedar",2017,555,331,108,491,1350
+"EF Lewis",2017,837,376,310,772,1721
+"Salmon Creek",2017,288,265,25,210,1024
+"Washougal",2017,705,221,380,670,1239
+"Lower Gorge",2017,131,106,16,103,399
+"Duncan_Above Weir",2017,5,4,1,4,15
+"Grays_Chinook",2018,981,269,519,957,1566
+"Elochoman_Skamokawa",2018,685,314,211,640,1427
+"Abernathy",2018,64,17,36,63,102
+"Abernathy_Above AFTC",2018,32,9,18,31,52
+"Mill",2018,45,12,24,44,73
+"Germany",2018,64,17,35,63,102
+"Upper Cowlitz and Cispus",2018,5827,103,5614,5832,6019
+"Tilton",2018,3151,115,2907,3157,3360
+"Lower Cowlitz",2018,304,353,11,181,1299
+"Delameter_Above Weir",2018,23,12,6,20,51
+"Lacamas_Above Weir",2018,4,5,0,2,17
+"Olequa_Above Weir",2018,23,29,1,14,103
+"Ostrander_Above Weir",2018,14,9,3,12,37
+"Green",2018,198,129,32,169,519
+"Upper NF Toutle",2018,0,0,0,0,0
+"NF_MS Toutle",2018,289,267,22,214,1005
+"SF Toutle",2018,169,192,9,105,696
+"Coweeman",2018,766,661,65,569,2497
+"Kalama",2018,207,105,60,188,460
+"Lower Lewis",2018,313,198,87,269,800
+"Upper NF Lewis",2018,6219,79,6066,6217,6379
+"Cedar",2018,442,403,35,321,1539
+"EF Lewis",2018,270,167,63,232,695
+"Salmon Creek",2018,295,209,53,245,818
+"Washougal",2018,738,255,357,697,1345
+"Lower Gorge",2018,170,99,44,149,409
+"Duncan_Above Weir",2018,2,2,0,1,7
+"Grays_Chinook",2019,1259,506,375,1229,2368
+"Elochoman_Skamokawa",2019,914,404,298,856,1850
+"Abernathy",2019,304,46,221,301,402
+"Abernathy_Above AFTC",2019,165,25,120,163,217
+"Mill",2019,144,24,101,142,195
+"Germany",2019,116,20,82,114,158
+"Upper Cowlitz and Cispus",2019,6163,151,5846,6170,6439
+"Tilton",2019,5666,175,5297,5674,5986
+"Lower Cowlitz",2019,182,218,5,109,769
+"Delameter_Above Weir",2019,45,28,7,39,112
+"Lacamas_Above Weir",2019,2,2,0,1,9
+"Olequa_Above Weir",2019,14,15,1,9,57
+"Ostrander_Above Weir",2019,34,12,15,33,62
+"Green",2019,259,147,62,232,625
+"Upper NF Toutle",2019,0,0,0,0,1
+"NF_MS Toutle",2019,407,353,62,312,1331
+"SF Toutle",2019,287,203,53,239,807
+"Coweeman",2019,1396,625,465,1298,2868
+"Kalama",2019,362,221,68,323,890
+"Lower Lewis",2019,407,297,72,335,1174
+"Upper NF Lewis",2019,4002,64,3878,4001,4127
+"Cedar",2019,425,346,48,332,1348
+"EF Lewis",2019,248,189,36,199,731
+"Salmon Creek",2019,441,361,60,345,1395
+"Washougal",2019,929,347,430,870,1752
+"Lower Gorge",2019,379,206,109,341,885
+"Duncan_Above Weir",2019,4,3,0,3,11
+"Grays_Chinook",2020,881,528,151,783,2122
+"Elochoman_Skamokawa",2020,359,312,28,273,1170
+"Abernathy",2020,76,63,7,58,239
+"Abernathy_Above AFTC",2020,55,44,5,43,171
+"Mill",2020,58,47,6,45,180
+"Germany",2020,39,32,4,30,122
+"Upper Cowlitz and Cispus",2020,11607,1037,8896,11830,12928
+"Tilton",2020,9276,1428,5903,9491,11460
+"Lower Cowlitz",2020,275,496,1,89,1656
+"Delameter_Above Weir",2020,76,42,15,70,175
+"Lacamas_Above Weir",2020,17,19,0,10,70
+"Olequa_Above Weir",2020,55,44,7,44,174
+"Ostrander_Above Weir",2020,19,17,2,14,63
+"Green",2020,267,119,97,246,555
+"Upper NF Toutle",2020,0,0,0,0,0
+"NF_MS Toutle",2020,220,275,10,137,952
+"SF Toutle",2020,98,112,6,62,389
+"Coweeman",2020,876,525,186,774,2176
+"Kalama",2020,690,374,258,607,1592
+"Lower Lewis",2020,493,399,68,393,1511
+"Upper NF Lewis",2020,4614,68,4482,4614,4747
+"Cedar",2020,1003,380,433,949,1887
+"EF Lewis",2020,252,233,20,185,884
+"Salmon Creek",2020,613,508,84,477,1905
+"Washougal",2020,1373,562,627,1260,2766
+"Lower Gorge",2020,201,209,12,136,754
+"Duncan_Above Weir",2020,2,3,0,1,11
