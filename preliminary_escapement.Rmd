@@ -20,7 +20,7 @@ Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 ***
 
 ## Background
-Preliminary estimates of coho salmon escapement for the Washington State portion of the Lower Columbia ESU are needed in early Febuary for run-reconstruction and forecasting purposes. This is challenging because coho have not yet completed their spawning so data is not yet done being collected, entered, QA/QC'd, or analyzed. As a result we developed a regression model to predict final coho escapement using real-time datasets collected at a series of indicator locations in the Lower Columbia region. Assuming this regression model has high prediction performance, this prediction is suitable for use as a preliminary estimate of coho escapement (for both wild and total abundance). 
+Preliminary estimates of coho salmon escapement for the Washington State portion of the Lower Columbia ESU are needed in early Febuary for run-reconstruction and forecasting purposes. This is challenging because coho have not yet completed their spawning so data is not yet done being collected, entered, QA/QC'd, or analyzed. As a result we developed a regression model to predict final coho escapement using real-time datasets collected at a series of indicator locations in the Lower Columbia region. Assuming this regression model has high prediction performance, this prediction is suitable for use as a preliminary estimate of coho escapement (for both wild and total abundance). Code and data for this preliminary escapement model as well as the final escapement model for the Washington State portion of the lower Columbia Coho ESU may be found in this [**repository**](https://github.com/tbuehrens/LCR_Coho_Escapement).
 
 Indicator locations used in the model include:
 1) Bonneville Dam (total counts)
