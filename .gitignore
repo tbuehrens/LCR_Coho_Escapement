@@ -3,7 +3,7 @@
 .RData
 .Ruserdata
 .accdb
-.RDS
+*.RDS
 
 
 
