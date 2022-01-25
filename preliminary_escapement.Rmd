@@ -42,6 +42,8 @@ library(ggplot2)
 library(gridExtra)
 library(brms)
 library(kableExtra)
+library(reshape2)
+
 
 #=====================
 #Specify Forecast Year
@@ -116,6 +118,7 @@ results<-data.frame(dat,exp(t(preds)))%>%
 
 p<-ggplot(results,aes(x=Year,y=LCR.wild))+
   geom_point(size=2)+
+  ylim(0,NA)+
   geom_ribbon(aes(ymin=X2.5.,ymax=X97.5.),alpha=0.2)+
   geom_ribbon(aes(ymin=X25.,ymax=X75.),alpha=0.2)+
   geom_line(aes(x=Year,y=X50.))+
@@ -153,6 +156,7 @@ results2<-data.frame(dat,exp(t(preds2)))%>%
 
 p2<-ggplot(results2,aes(x=Year,y=LCR.total))+
   geom_point(size=2)+
+  ylim(0,NA)+
   geom_ribbon(aes(ymin=X2.5.,ymax=X97.5.),alpha=0.2)+
   geom_ribbon(aes(ymin=X25.,ymax=X75.),alpha=0.2)+
   geom_line(aes(x=Year,y=X50.))+
@@ -167,6 +171,103 @@ results3<-bind_rows(results,results2)%>%
   rename(`2.5%`="cols1",`25%`="cols2",`50%`="cols3",`75%`="cols4",`97.5%`="cols5")
 
 results3%>%
-  kbl(caption = paste0("Table 1. Posterior Quantiles of Lower Coho Escapement, ",f_year),digits =0)%>%
+  kbl(caption = paste0("Table 1. Posterior Quantiles of Lower Columbia Coho Escapement, ",f_year),digits =0)%>%
   kable_classic(full_width = F, html_font = "Cambria")
+```
+
+## Fit and Results Version 2 
+This version predicts final escapement using a state space log-normal multivariate random walk with trend model; the same model used in the Washington State "State of the Salmon" report (see code [here](https://github.com/tbuehrens/WDFW_SOS_Analysis)).
+```{r fitmodels2, message = FALSE, warning = FALSE,results = "show"}
+dat2<-read_csv("final data/cohocorr.csv")%>%
+  left_join(LCR.total)%>%
+  left_join(LCR.wild)%>%
+  left_join(Bonneville.total)%>%
+  left_join(Willamette.total)%>%
+  pivot_longer(cols=!Year,names_to = "Population",values_to = "Abundance")%>%
+  filter(!is.na(Abundance))%>%
+  mutate(popnum = as.numeric(as.factor(Population)),
+         yearnum = Year-min(Year)+1
+         )
+
+
+standat<-list(
+  run_estimation = 1,
+  T = max(dat2$Year,na.rm = T)-min(dat2$Year,na.rm = T)+1,
+  T_forward = 0,
+  T_backward = 0,
+  P = length(unique(dat2$Population)),
+  n = dim(dat2)[1],
+  N_obs = dat2$Abundance,
+  pop_obs = dat2$popnum,
+  year_obs = dat2$yearnum,
+  N_0_med_prior = dat2%>%
+    group_by(Population)%>%
+    filter(Year == min(Year))%>%
+    ungroup()%>%
+    dplyr::select(Abundance)%>%
+    unlist()
+)
+
+if(!file.exists("results/prelim/m3.RDS")){
+ model<-stan_model(model_code = noquote(readLines("https://raw.githubusercontent.com/tbuehrens/WDFW_SOS_Analysis/main/models/model_mv_v3.stan")))
+ fit<-sampling(object = model,
+              data = standat,
+              chains = 4,
+              cores = 4,
+              warmup = 1000,
+              iter = 2000,
+              thin = 1,
+              control= list(adapt_delta = 0.99)
+              )
+ saveRDS(fit,"results/prelim/m3.RDS")
+}else{
+  fit<-readRDS("results/prelim/m3.RDS")
+}
+results4<-melt(extract(fit)$N)%>%
+  rename(yearnum=Var2,popnum=Var3,Abundance_fit=value)%>%
+  group_by(yearnum,popnum)%>%
+  summarise(Abundance_fit = quantile(Abundance_fit, c(0.025, 0.25, 0.5, 0.75,0.975)), q = c(0.025,0.25,0.5,0.75,0.975))%>%
+  pivot_wider(id_cols=c(yearnum,popnum), names_from=q, values_from=Abundance_fit)%>%
+  left_join(dat2%>%
+              group_by(popnum)%>%
+              summarise(Population=first(Population))
+            )%>%
+  left_join(dat2%>%
+              group_by(yearnum)%>%
+              summarise(Year=first(Year))
+            )%>%
+  left_join(dat2%>%
+              dplyr::select(Year,Population,Abundance)
+            )
+
+p4<-ggplot(results4%>%filter(Population=="LCR.wild"),aes(x=Year,y=Abundance))+
+  geom_point(size=2)+
+  ylim(0,NA)+
+  ylab("LCR.wild")+
+  geom_ribbon(aes(ymin=`0.025`,ymax=`0.975`),alpha=0.2)+
+  geom_ribbon(aes(ymin=`0.25`,ymax=`0.75`),alpha=0.2)+
+  geom_line(aes(x=Year,y=`0.5`))+
+  geom_point(data=results4%>%filter(Year==f_year, Population =="LCR.wild"),aes(x=Year,y=`0.5`),color="forestgreen",size=3)
+
+p5<-ggplot(results4%>%filter(Population=="LCR.total"),aes(x=Year,y=Abundance))+
+  geom_point(size=2)+
+  ylim(0,NA)+
+  ylab("LCR.total")+
+  geom_ribbon(aes(ymin=`0.025`,ymax=`0.975`),alpha=0.2)+
+  geom_ribbon(aes(ymin=`0.25`,ymax=`0.75`),alpha=0.2)+
+  geom_line(aes(x=Year,y=`0.5`))+
+  geom_point(data=results4%>%filter(Year==f_year, Population =="LCR.total"),aes(x=Year,y=`0.5`),color="forestgreen",size=3)
+
+
+p6<-grid.arrange(p4, p5, ncol=2)
+print(p6)
+
+results4%>%
+  ungroup()%>%
+  filter(Year==f_year,Population %in% c("LCR.wild","LCR.total"))%>%
+  dplyr::select(Year, Population,cols=contains("."))%>%
+  rename(`2.5%`="cols1",`25%`="cols2",`50%`="cols3",`75%`="cols4",`97.5%`="cols5")%>%
+  kbl(caption = paste0("Table 2. Posterior Quantiles of Lower Columbia Coho Escapement, ",f_year),digits =0)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
 ```
