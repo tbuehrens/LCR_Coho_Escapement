@@ -1,0 +1,172 @@
+---
+title: Preliminary Coho Escapement Estimate
+author: Thomas Buehrens (tbuehrens@dfw.wa.gov)
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+***
+
+Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
+
+***
+
+## Background
+Preliminary estimates of coho salmon escapement for the Washington State portion of the Lower Columbia ESU are needed in early Febuary for run-reconstruction and forecasting purposes. This is challenging because coho have not yet completed their spawning so data is not yet done being collected, entered, QA/QC'd, or analyzed. As a result we developed a regression model to predict final coho escapement using real-time datasets collected at a series of indicator locations in the Lower Columbia region. Assuming this regression model has high prediction performance, this prediction is suitable for use as a preliminary estimate of coho escapement (for both wild and total abundance). 
+
+Indicator locations used in the model include:
+1) Bonneville Dam (total counts)
+2) Willamette Falls (total counts)
+3) Clackamas (wild counts at NF Dam)
+4) Washougal Hatchery (Type N counts of hatchery coho)
+
+## Setup
+In the following section of code we will lode some external libraries necessary to make the code run. We will then specify the year of escapement we'd like to estimate and we will load the data used in the regression models. Links to these data sources are included in the code of this repository.
+```{r setup, message = FALSE, warning = FALSE,results = "show"}
+#=========
+# Packages
+#=========
+library(tidyverse)
+library(rstan)
+library(rstanarm)
+library(mgcv)
+library(ggplot2)
+library(gridExtra)
+library(brms)
+library(kableExtra)
+
+#=====================
+#Specify Forecast Year
+#=====================
+f_year<-2021 #this is the year we want to predict prelim escapement for
+
+#===========================
+#Data update links and files
+#===========================
+# LCR Totals = sum of medians by year Coho_TRT_Adults.csv
+# LCR Wild = sum of medians by year Coho_TRT_UM_Ad.csv
+# Bonneville Dam: http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=BON&startdate=1%2F1&enddate=12%2F31&run=
+# Willamette Dam: "http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=WFF&startdate=1%2F1&enddate=12%2F31&run="
+# Clackamas (early + late wild): https://portlandgeneral.com/about/fish-wildlife-habitats/fish-counts-fish-runs/clackamas-daily-fish-counts
+# cowlitz ...open 10 year table https://www.mytpu.org/community-environment/fish-wildlife-environment/cowlitz-fish-report/
+# washougal get the type N adult Hatchery total: https://wdfw.wa.gov/fishing/management/hatcheries/escapement#weekly-reports
+
+LCR.total<-read_csv("results/Results_2021-10-01/2010_2020_Coho_TRT_Adults.csv")%>%
+  group_by(Year)%>%
+  summarize(LCR.total = sum(Median))
+LCR.wild<-read_csv("results/Results_2021-10-01/2010_2020_Coho_TRT_UM_Ad.csv")%>%
+  group_by(Year)%>%
+  summarize(LCR.wild = sum(Median))
+Bonneville.total<-read_csv("http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=BON&startdate=1%2F1&enddate=12%2F31&run=")%>%
+  dplyr::select(Year,Bonneville.total=Coho)
+Willamette.total<-read_csv("http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=WFF&startdate=1%2F1&enddate=12%2F31&run=")%>%
+  dplyr::select(Year,Willamette.total=Coho)
+
+dat<-read_csv("final data/cohocorr.csv")%>%
+  left_join(LCR.total)%>%
+  left_join(LCR.wild)%>%
+  left_join(Bonneville.total)%>%
+  left_join(Willamette.total)
+
+print(dat%>%dplyr::select(!comments), width=100, n = nrow(dat))
+
+dat<-dat%>%
+  mutate_at(.vars=c("Bonneville.total","Willamette.total", "Clackamas.w", "Cowlitz.barrier.total", "Washougal.hatchery.late.h"),.funs=function(x) c(scale(log(x))))
+```
+
+## Fit Models And Display Results
+```{r fitmodels, message = FALSE, warning = FALSE,results = "show"}
+if(!file.exists("results/prelim/m1.RDS")){
+  knots<-length(unique(dat$Year))-1
+  m1<-stan_gamm4(log(LCR.wild) ~ 
+               s(Year,bs="ps") +
+               Bonneville.total + 
+               Willamette.total +
+               Clackamas.w +
+               Cowlitz.barrier.total +
+               Washougal.hatchery.late.h,
+             
+               #prior=laplace(),
+               prior=hs(
+               ),
+             
+             data=dat%>%filter(Year<f_year),
+             prior_intercept = cauchy(0,10),
+             chains=4,
+             cores=4,
+             iter=10000,
+             warmup=8000,
+             control=list(adapt_delta=0.9995)
+  )
+  saveRDS(m1,file="results/prelim/m1.RDS")
+}else{
+    m1<-readRDS("results/prelim/m1.RDS")
+  }
+preds<-apply(posterior_predict(m1,newdata = data.frame(dat%>%select(-c("LCR.wild","LCR.total"))),draws=1000),2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975)))
+results<-data.frame(dat,exp(t(preds)))%>%
+  mutate(Group="Wild Coho")
+
+p<-ggplot(results,aes(x=Year,y=LCR.wild))+
+  geom_point(size=2)+
+  geom_ribbon(aes(ymin=X2.5.,ymax=X97.5.),alpha=0.2)+
+  geom_ribbon(aes(ymin=X25.,ymax=X75.),alpha=0.2)+
+  geom_line(aes(x=Year,y=X50.))+
+  geom_point(data=results%>%filter(Year==f_year),aes(x=Year,y=X50.),color="forestgreen",size=3)
+
+if(!file.exists("results/prelim/m2.RDS")){
+  knots<-length(unique(dat$Year))-1
+  m2<-stan_gamm4(log(LCR.total) ~ 
+                   s(Year,bs="ps") +
+                   Bonneville.total + 
+                   Willamette.total +
+                   Clackamas.w +
+                   Cowlitz.barrier.total +
+                   Washougal.hatchery.late.h,
+                 
+                 #prior=laplace(),
+                 prior=hs(
+                 ),
+                 
+                 data=dat%>%filter(Year<f_year),
+                 prior_intercept = cauchy(0,10),
+                 chains=4,
+                 cores=4,
+                 iter=10000,
+                 warmup=8000,
+                 control=list(adapt_delta=0.9995)
+  )
+  saveRDS(m2,file="results/prelim/m2.RDS")
+}else{
+    m2<-readRDS("results/prelim/m2.RDS")
+  }
+preds2<-apply(posterior_predict(m2,newdata = data.frame(dat%>%select(-c("LCR.wild","LCR.total"))),draws=1000),2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975)))
+results2<-data.frame(dat,exp(t(preds2)))%>%
+  mutate(Group="Total Coho")
+
+p2<-ggplot(results2,aes(x=Year,y=LCR.total))+
+  geom_point(size=2)+
+  geom_ribbon(aes(ymin=X2.5.,ymax=X97.5.),alpha=0.2)+
+  geom_ribbon(aes(ymin=X25.,ymax=X75.),alpha=0.2)+
+  geom_line(aes(x=Year,y=X50.))+
+  geom_point(data=results2%>%filter(Year==f_year),aes(x=Year,y=X50.),color="forestgreen",size=3)
+p3<-grid.arrange(p, p2, ncol=2)
+print(p3)
+
+results3<-bind_rows(results,results2)%>%
+  as_tibble()%>%
+  filter(Year==f_year)%>%
+  dplyr::select(Year, Group,cols=contains("x"))%>%
+  rename(`2.5%`="cols1",`25%`="cols2",`50%`="cols3",`75%`="cols4",`97.5%`="cols5")
+
+results3%>%
+  kbl(caption = paste0("Table 1. Posterior Quantiles of Lower Coho Escapement, ",f_year),digits =0)%>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
