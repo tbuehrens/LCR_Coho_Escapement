@@ -76,7 +76,7 @@ dat<-read_csv("final data/cohocorr.csv")%>%
   left_join(Bonneville.total)%>%
   left_join(Willamette.total)
 
-print(dat%>%dplyr::select(!comments), width=100, n = nrow(dat))
+print(dat, width=100, n = 100)
 
 dat<-dat%>%
   mutate_at(.vars=c("Bonneville.total","Willamette.total", "Clackamas.w", "Cowlitz.barrier.total", "Washougal.hatchery.late.h"),.funs=function(x) c(scale(log(x))))
