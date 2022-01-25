@@ -68,7 +68,7 @@ parameters{
   matrix[T-1,P] eps_lambda;
   real<lower=0> sigma_lambda_mu;
   real<lower=0> sigma_lambda_sigma;
-  vector<lower=0>[P] eps_sigma_lambda; 
+  vector[P] eps_sigma_lambda; 
   //pop-specfic pHOS process errors  
   matrix[T-1,P] eps_pM;
   real<lower=0> sigma_pM;
@@ -83,7 +83,7 @@ parameters{
   //pop-specfic GRTS overdispersion  
   real<lower=0> sigma_disp_mu;
   real<lower=0> sigma_disp_sigma;
-  vector<lower=0>[P] eps_sigma_disp;
+  vector[P] eps_sigma_disp;
   //P_Index_both
   vector<lower=0,upper=1>[n_grts_and_index] p_Index_both;
   //pop-specfic Harvest Rate random effects 
@@ -97,7 +97,7 @@ transformed parameters{
   //Redds
   matrix[T,P] Redds;
   //GRTS redd overdispersion
-  vector<lower=0>[P] sigma_disp = sigma_disp_mu + eps_sigma_disp * sigma_disp_sigma;
+  vector<lower=0>[P] sigma_disp = exp(log(sigma_disp_mu) + eps_sigma_disp * sigma_disp_sigma);
   //Total Abundance
   matrix[T,P] Adults;
   //UM Abundance
@@ -105,7 +105,7 @@ transformed parameters{
   //M Abundance
   matrix[T,P] M_ad;
   //proccess SD for fish Density
-  vector<lower=0>[P] sigma_lambda = sigma_lambda_mu + eps_sigma_lambda * sigma_lambda_sigma;
+  vector<lower=0>[P] sigma_lambda = exp(log(sigma_lambda_mu) + eps_sigma_lambda * sigma_lambda_sigma);
   //pHOS
   matrix<lower=0,upper=1>[T,P] pM;
   //pF
@@ -156,8 +156,8 @@ model{
   eps_lambda_all[1:T-1] ~ std_normal();
   //pop-specfic density process errors
   sigma_lambda_mu ~ inv_gamma(1,0.125); 
-  sigma_lambda_sigma ~ cauchy(0,cauchy_scale);
-  eps_sigma_lambda ~ cauchy(0,cauchy_scale);
+  sigma_lambda_sigma ~ std_normal();
+  eps_sigma_lambda ~ std_normal();
   to_vector(eps_lambda) ~ std_normal();
   //pop-specfic pM process errors
   sigma_pM ~ cauchy(0,cauchy_scale);
@@ -180,8 +180,8 @@ model{
   //p_MR (mark-recapture prob of capture)
   p_MR ~ beta(0.5,0.5);
   //pop-specfic GRTS overdispersion  
-  sigma_disp_mu ~ cauchy(0,cauchy_scale);
-  sigma_disp_sigma ~ cauchy(0,cauchy_scale);
+  sigma_disp_mu ~ lognormal(0,1);
+  sigma_disp_sigma ~ std_normal();
   eps_sigma_disp ~ std_normal();
   //P_Index_both
   p_Index_both ~ beta(0.5,0.5); 
