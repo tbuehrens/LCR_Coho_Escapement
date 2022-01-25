@@ -2,7 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-.accdb
+*.accdb
 *.RDS
 
 
