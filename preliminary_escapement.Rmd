@@ -27,7 +27,7 @@ Last Updated `r format(Sys.time(), '%m/%d/%Y')`.
 ***
 
 ## Background
-Preliminary estimates of coho salmon escapement for the Washington State portion of the Lower Columbia ESU are needed in early February for run-reconstruction and forecasting purposes. This is challenging because coho have not yet completed their spawning so data is not yet done being collected, entered, QA/QC'd, or analyzed. As a result we developed two methods to predict final coho escapement using real-time data sets collected at a series of census count indicator locations in the Lower Columbia region. Method 1 is a multiple regression with auto-correlated error (via a spline on year). Method 2 uses a multivariate time series model (state-space log-normal random walk with drift). The models predict total (hatchery + wild) and wild coho abundance for the entire Washington State portion of the Lower Columbia ESU below Bonneville Dam. Population-level estimates are developed by multiplying the ESU-totals by the observed proportional contribution of populations to the ESU-total in the prior year. Model-averaged estimates are obtained by taking the arithmetic mean of the two models' estimates without equal weight. Code and data for this preliminary escapement model as well as the final escapement model for the Washington State portion of the lower Columbia Coho ESU may be found in this [**repository**](https://github.com/tbuehrens/LCR_Coho_Escapement).
+Preliminary estimates of coho salmon escapement for the Washington State portion of the Lower Columbia ESU are needed in early February for run-reconstruction and forecasting purposes. This is challenging because coho have not yet completed their spawning so data is not yet done being collected, entered, QA/QC'd, or analyzed. As a result we developed two methods to predict final coho escapement using real-time data sets collected at a series of census count indicator locations in the Lower Columbia region. Method 1 is a multiple regression with auto-correlated error (via a spline on year). Method 2 uses a multivariate time series model (state-space log-normal random walk with drift). The models predict total (hatchery + wild) and wild coho abundance for the entire Washington State portion of the Lower Columbia ESU below Bonneville Dam. Population-level estimates are developed by multiplying the ESU-totals by the observed proportional contribution of populations to the ESU-total in the prior year. Model-averaged estimates are obtained by taking the arithmetic mean of the two models' estimates with equal weight. Code and data for this preliminary escapement model as well as the final escapement model for the Washington State portion of the lower Columbia Coho ESU may be found in this [**repository**](https://github.com/tbuehrens/LCR_Coho_Escapement).
 
 Indicator locations used in the model include:
 1) Bonneville Dam (total counts) [**(link)**](http://www.cbr.washington.edu/dart/cs/php/rpt/adult_annual.php?sc=1&outputFormat=csv&proj=BON&startdate=1%2F1&enddate=12%2F31&run=)
@@ -366,8 +366,8 @@ Wild_Population_results%>%
 Total_Population_results<-bind_rows(total_pops,total_pops2)%>%
   group_by(Population)%>%
   summarise(Method = "Mean", Year = mean(Year), `Preliminary Abundance Estimate` = mean(`Preliminary Abundance Estimate`))%>%
-  bind_rows(wild_pops)%>%
-  bind_rows(wild_pops2)%>%
+  bind_rows(total_pops)%>%
+  bind_rows(total_pops2)%>%
   pivot_wider(names_from = Method, values_from = `Preliminary Abundance Estimate`)%>%
   arrange(Population)
 
