@@ -125,7 +125,7 @@ if(!file.exists("results/prelim/m1.RDS")){
 }else{
     m1<-readRDS("results/prelim/m1.RDS")
   }
-preds<-apply(posterior_predict(m1,newdata = data.frame(dat%>%select(-c("LCR.wild","LCR.total"))),draws=1000),2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975)))
+preds<-apply(posterior_predict(m1,newdata = data.frame(dat%>%dplyr::select(-c("LCR.wild","LCR.total"))),draws=1000),2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975)))
 results<-data.frame(dat,exp(t(preds)))%>%
   mutate(Group="LCR.wild", Method = "Method 1")
 
@@ -164,7 +164,7 @@ if(!file.exists("results/prelim/m2.RDS")){
 }else{
     m2<-readRDS("results/prelim/m2.RDS")
   }
-preds2<-apply(posterior_predict(m2,newdata = data.frame(dat%>%select(-c("LCR.wild","LCR.total"))),draws=1000),2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975)))
+preds2<-apply(posterior_predict(m2,newdata = data.frame(dat%>%dplyr::select(-c("LCR.wild","LCR.total"))),draws=1000),2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975)))
 results2<-data.frame(dat,exp(t(preds2)))%>%
   mutate(Group="LCR.total", Method = "Method 1")
 
