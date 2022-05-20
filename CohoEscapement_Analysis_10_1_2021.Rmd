@@ -81,26 +81,20 @@ models.dir<-"models"
 
 
 #datasets
-#accdb.name<-"TWS_Analysis_Only_v9.1.accdb"
-# traphauldata.name<-"TH_dat_04022020_w_nflewisabvdam.csv"
-# frame_file.name<-"Coho_frames_07.19.2020.csv"
-# RpF_file.name<-"Coho_RpF_04.08.2020.csv"
-# IMWdata.name<-"IMW_redds_02.14.2020.csv"
-# IMWdata_v2.name<-"IMW_redds_06_25_2021_V2.csv"
-accdb.name<-"TWS_Analysis_Only_v9.2.accdb"
-traphauldata.name<-"TH_dat_06_29_21_w_nflewisabvdam.csv"
-frame_file.name<-"Coho_frames_07.19.2020.csv"
-RpF_file.name<-"Coho_RpF_04.14.2021.csv"
-IMWdata.name<-"IMW_redds_01.27.2021.csv"
-IMWdata_v2.name<-"IMW_redds_06_25_2021_V2.csv"
+accdb.name<-"TWS_Analysis_Only_v9.2.5.accdb"
+traphauldata.name<-"TH_dat_04_06_22_w_nflewisabvdam.csv"
+frame_file.name<-"Coho_frames_04.05.2022.csv"
+RpF_file.name<-"Coho_RpF_04.13.2022.csv"
+IMWdata.name<-"IMW_redds_04.07.2022.csv"
+IMWdata_v2.name<-"IMW_redds_04_07_2022_V2.csv"
 
 
 # set data summarization params
-years=c(2010:2020)
-GRTSdat.date<-"2021-06-29"
+years=c(2010:2021)
+GRTSdat.date<-"2022-05-20"
 assume_Del_Ost_census<-TRUE
-UpdateGRTSdata<-FALSE
-WriteGRTSdata<-FALSE
+UpdateGRTSdata<-TRUE
+WriteGRTSdata<-TRUE
 
 #model files
 model.file<-"CohoEscapement_Model_6_23_2021.jags"
@@ -144,10 +138,10 @@ GRTSpops<-data.frame(read_csv(file.path(csv.data.dir,frame_file.name)))
 #=====================================
 if(UpdateGRTSdata==TRUE){
   if(2010 %in% years){
-    GRTSdataprep2010(data.dir=data.dir,frame_file.name=frame_file.name)
+    GRTSdataprep2010(data.dir=data.dir,frame_file.name=frame_file.name,WriteGRTSdata=WriteGRTSdata)
   }
   if(2011 %in% years){
-    GRTSdataprep2011(data.dir=data.dir,frame_file.name=frame_file.name)
+    GRTSdataprep2011(data.dir=data.dir,frame_file.name=frame_file.name,WriteGRTSdata=WriteGRTSdata)
   }
   GRTSdat<-GRTSdataprep(GRTSpops=GRTSpops,data.dir=data.dir,db.dir=db.dir,accdb.name = accdb.name,years=years[!years%in%c(2010:2011)], write=WriteGRTSdata)
 }else{

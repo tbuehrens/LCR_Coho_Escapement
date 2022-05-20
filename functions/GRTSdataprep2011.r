@@ -1,8 +1,8 @@
-GRTSdataprep2011<-function(data.dir,frame_file.name){
+GRTSdataprep2011<-function(data.dir,frame_file.name,WriteGRTSdata){
   #======================
   #create final data folder
   #=====================
-  if(write==T){
+  if(WriteGRTSdata==T){
     subDir<-paste("GRTSdata","_",Sys.Date(),sep="")
     if (!file.exists(subDir)){
       dir.create(file.path(home.dir,data.dir, subDir))

@@ -27,8 +27,11 @@ Abernathy,2018,22.71,72,Census
 Mill,2018,24.39,54,Expanded
 Germany,2018,12.34,83,Expanded
 Abernathy,2019,22.71,239,Census
-Mill,2019,24.39,107,Expanded
-Germany,2019,12.34,83,Expanded
+Mill,2019,24.39,107,Census
+Germany,2019,12.34,83,Census
 Abernathy,2020,22.71,142,Census
-Mill,2020,24.39,116,Expanded
-Germany,2020,12.34,75,Expanded
+Mill,2020,24.39,116,Census
+Germany,2020,12.34,75,Census
+Abernathy,2021,22.71,174,Census
+Mill,2021,24.39,97,Census
+Germany,2021,12.34,45,Census
