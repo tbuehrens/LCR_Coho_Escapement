@@ -91,10 +91,10 @@ IMWdata_v2.name<-"IMW_redds_04_07_2022_V2.csv"
 
 # set data summarization params
 years=c(2010:2021)
-GRTSdat.date<-"2022-05-20"
+GRTSdat.date<-"2022-05-23"
 assume_Del_Ost_census<-TRUE
-UpdateGRTSdata<-TRUE
-WriteGRTSdata<-TRUE
+UpdateGRTSdata<-FALSE
+WriteGRTSdata<-FALSE
 
 #model files
 model.file<-"CohoEscapement_Model_6_23_2021.jags"
@@ -709,7 +709,7 @@ IMW_Y2<-read_csv(file.path(csv.data.dir,IMWdata_v2.name))%>%
               mutate(Order = as.character(Order))
               , by = c("GRTS_Population")
             )%>%filter(GRTS_Population != "Abernathy" & I_miles > 0)%>%
-    rename(yr_Y2 = Year, pop_Y2 = Order)%>%
+    dplyr::rename(yr_Y2 = Year, pop_Y2 = Order)%>%
     mutate(yr_Y2 = as.character(yr_Y2))%>%
     dplyr::select(!c(Comment))
 Y2<-jagsdat$Y2%>%
@@ -735,18 +735,18 @@ Y2<-jagsdat$Y2%>%
 #Y GRTS redds
 g<-melt(jagsdat$g)%>%
   as_tibble()%>%
-  rename(pop_Y = X1, Reach = X2, yr_Y = X3, g = value)
+  dplyr::rename(pop_Y = X1, Reach = X2, yr_Y = X3, g = value)
 
 Y<-melt(jagsdat$y)%>%
   as_tibble()%>%
-  rename(pop_Y = X1, Reach = X2, yr_Y = X3, Y = value)%>%
+  dplyr::rename(pop_Y = X1, Reach = X2, yr_Y = X3, Y = value)%>%
   left_join(g, by=c("yr_Y","pop_Y","Reach"))%>%
   left_join(GRTSpops%>%
             dplyr::select(GRTS_Population,Order)%>%
             mutate(Order = as.character(Order))
             , by = c("pop_Y"="GRTS_Population")
   )%>%
-  rename(GRTS_Population=pop_Y,pop_Y=Order)%>%
+  dplyr::rename(GRTS_Population=pop_Y,pop_Y=Order)%>%
   #adding some filters in that shouldn't have to exist
   filter(!is.na(g))%>%
   filter(!is.na(Y))%>%
@@ -814,7 +814,7 @@ catch_a_M_mu_dat<-jagsdat$log_catch_a_M_mu%>%
   left_join(years%>%
               as_tibble()%>%
               rownames_to_column()%>%
-              rename(crc_years=rowname,crc_years_real=value)%>%
+              dplyr::rename(crc_years=rowname,crc_years_real=value)%>%
               mutate(crc_years_real=as.character(crc_years_real)),
             
             by = c("crc_years_real")
@@ -1396,7 +1396,7 @@ cols<-brewer.pal(n=2,name = "Pastel1")
 
 dimnames(res$pF)[[3]]<-years
 df<-data.frame(melt(res$pF))%>%
-  rename(pF=value,Year=Var.3,GRTS_Population = Var.2)
+  dplyr::rename(pF=value,Year=Var.3,GRTS_Population = Var.2)
 hier_pF<-data.frame(hier_pF)
 hier_pF$GRTS_Population<-"hier_pF"
 
@@ -1410,7 +1410,7 @@ p<-ggplot(data = df, aes(x=pF, group=GRTS_Population)) +
   print(p)
 
   RpF <- data.frame(res$RpF)%>%
-    rename(RpF=res.RpF)
+    dplyr::rename(RpF=res.RpF)
   p2<-ggplot(data = RpF)+ 
     geom_density(aes(x=RpF),alpha = 0.4,fill='black') +
     theme_bw()+
