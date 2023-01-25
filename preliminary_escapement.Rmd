@@ -1,6 +1,6 @@
 ---
-title: Preliminary Coho Escapement Estimate
-author: Thomas Buehrens (tbuehrens@dfw.wa.gov)
+title: Preliminary Coho Escapement Estimates
+author: Thomas Buehrens (tbuehrens@dfw.wa.gov) & Lisa Brown (lisa.brown@dfw.wa.gov)
 output:
   html_document:
     code_folding: hide
@@ -55,10 +55,10 @@ library(reshape2)
 #=====================
 #Specify Forecast Year
 #=====================
-f_year<-2021 #this is the year we want to predict prelim escapement for
-results_folder<-"Results_2021-10-01" #trib estimate results to use.
-wild_results<-"2010_2020_Coho_TRT_UM_ad.csv"
-total_results<-"2010_2020_Coho_TRT_Adults.csv"
+f_year<-2022 #this is the year we want to predict prelim escapement for
+results_folder<-"Results_2022-05-23" #trib estimate results to use.
+wild_results<-"2010_2021_Coho_TRT_UM_ad.csv"
+total_results<-"2010_2021_Coho_TRT_Adults.csv"
 #===========================
 #Data update links and files
 #===========================
@@ -246,17 +246,22 @@ standat<-list(
 )
 
 if(!file.exists("results/prelim/m3.RDS")){
- model<-stan_model(model_code = noquote(readLines("https://raw.githubusercontent.com/tbuehrens/WDFW_SOS_Analysis/main/models/model_mv_v3.stan")))
- fit<-sampling(object = model,
-              data = standat,
-              chains = 4,
-              cores = 4,
-              warmup = 1000,
-              iter = 2000,
-              thin = 1,
-              control= list(adapt_delta = 0.99)
-              )
- saveRDS(fit,"results/prelim/m3.RDS")
+  if(!file.exists("models/stan_prelim_model.RDS")){  
+    model<-stan_model(model_code = noquote(readLines("https://raw.githubusercontent.com/tbuehrens/WDFW_SOS_Analysis/main/models/model_mv_v3.stan")))
+    saveRSE(model,"models/stan_prelim_model.RDS")
+  }else{
+    model<-readRDS("models/stan_prelim_model.RDS")
+  }
+  fit<-sampling(object = model,
+               data = standat,
+               chains = 4,
+               cores = 4,
+               warmup = 1000,
+               iter = 2000,
+               thin = 1,
+               control= list(adapt_delta = 0.99)
+               )
+  saveRDS(fit,"results/prelim/m3.RDS")
 }else{
   fit<-readRDS("results/prelim/m3.RDS")
 }
