@@ -98,7 +98,7 @@ WriteGRTSdata<-FALSE
 
 #model files
 model.file<-"CohoEscapement_Model_6_23_2021.jags"
-stan_model.file<-"CohoEscapement_Model_10_1_2021.stan"
+stan_model.file<-"CohoEscapement_Model_2_16_2023_test.stan"
 
 #model fitting
 fit_JAGS = FALSE
@@ -125,7 +125,7 @@ Inputs include
 
 The code:
 1. generates 2010 and 2011 formatted summarized GRTS and Index survey data in csv form and puts them in a folder of "GRTSdat".
-2. it then queries TWS and generates identically formated csv files from TWS for years after 2011 and puts them in the same folder.
+2. it then queries TWS and generates identically formatted csv files from TWS for years after 2011 and puts them in the same folder.
 3. It then call in the rest of the data from the files listed above and formats the data for the JAGS model.
 4. Re-summarizing the data for the Stan model occurs below AFTER the JAGS model run section.
 ```{r data prep, message = FALSE, warning = FALSE,results = "hide"}
