@@ -5,6 +5,7 @@
 *.accdb
 *.RDS
 *.zip
+/models/oldmodels
 
 
 
