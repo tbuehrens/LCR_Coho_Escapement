@@ -81,24 +81,24 @@ models.dir<-"models"
 
 
 #datasets
-accdb.name<-"TWS_Analysis_Only_v9.2.5.accdb"
-traphauldata.name<-"TH_dat_04_06_22_w_nflewisabvdam.csv"
+#accdb.name<-"TWS_Analysis_Only_v9.2.5.accdb"
+accdb.name<-"TWS_Analysis_Only_v9.2.6from2013Forward05302023.accdb"
+traphauldata.name<-"TH_dat_05_18_23_w_nflewisabvdam.csv"
 frame_file.name<-"Coho_frames_04.05.2022.csv"
-RpF_file.name<-"Coho_RpF_04.13.2022.csv"
-IMWdata.name<-"IMW_redds_04.07.2022.csv"
-IMWdata_v2.name<-"IMW_redds_04_07_2022_V2.csv"
+RpF_file.name<-"Coho_RpF_02.27.2023_LB.csv"
+IMWdata_v2.name<-"IMW_redds_02_12_2023_V2.csv"
+IMWdata.name<-"IMW_redds_02.12.2023.csv"
 
 
 # set data summarization params
-years=c(2010:2021)
-GRTSdat.date<-"2022-05-23"
+years=c(2010:2022)
+GRTSdat.date<-"2023-06-26"
 assume_Del_Ost_census<-TRUE
 UpdateGRTSdata<-FALSE
 WriteGRTSdata<-FALSE
 
 #model files
-model.file<-"CohoEscapement_Model_6_23_2021.jags"
-stan_model.file<-"CohoEscapement_Model_2_16_2023_test.stan"
+stan_model.file<-"CohoEscapement_Model_2_16_2023.stan"
 
 #model fitting
 fit_JAGS = FALSE
@@ -897,11 +897,12 @@ standat<-list(
   #priors
   cauchy_scale = 0.5
 )
+saveRDS(standat,file.path(csv.data.dir,paste0("standata_",GRTSdat.date,".rds")))
 ```
-#Fit Stan Model
 
+#Fit Stan Model
 ```{r fit Stan model} 
-#,message = FALSE, warning = FALSE,results = "hide"
+standat<-readRDS(file.path(csv.data.dir,paste0("standata_",GRTSdat.date,".rds")))
 #======================
 #create final data folder
 #=====================
