@@ -55,10 +55,10 @@ library(reshape2)
 #=====================
 #Specify Forecast Year
 #=====================
-f_year<-2022 #this is the year we want to predict prelim escapement for
-results_folder<-"Results_2022-05-23" #trib estimate results to use.
-wild_results<-"2010_2021_Coho_TRT_UM_ad.csv"
-total_results<-"2010_2021_Coho_TRT_Adults.csv"
+f_year<-2023 #this is the year we want to predict prelim escapement for
+results_folder<-"Results_2023-06-26" #trib estimate results to use.
+wild_results<-"2010_2022_Coho_TRT_UM_ad.csv"
+total_results<-"2010_2022_Coho_TRT_Adults.csv"
 #===========================
 #Data update links and files
 #===========================
@@ -247,8 +247,8 @@ standat<-list(
 
 if(!file.exists("results/prelim/m3.RDS")){
   if(!file.exists("models/stan_prelim_model.RDS")){  
-    model<-stan_model(model_code = noquote(readLines("https://raw.githubusercontent.com/tbuehrens/WDFW_SOS_Analysis/main/models/model_mv_v3.stan")))
-    saveRSE(model,"models/stan_prelim_model.RDS")
+    model<-stan_model(model_code = noquote(readLines("https://raw.githubusercontent.com/tbuehrens/WDFW_SOS_Analysis/2022/models/model_mv_v3.stan")))
+    saveRDS(model,"models/stan_prelim_model.RDS")
   }else{
     model<-readRDS("models/stan_prelim_model.RDS")
   }
