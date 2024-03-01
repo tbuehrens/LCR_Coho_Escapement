@@ -102,7 +102,7 @@ stan_model.file<-"CohoEscapement_Model_2_16_2023.stan"
 
 #model fitting
 fit_JAGS = FALSE
-fit_Stan = TRUE
+fit_Stan = FALSE
 
 #HMC params (only applies to stan model; you need to manually tweak for JAGS in Jagsfit function)
 chains=4
