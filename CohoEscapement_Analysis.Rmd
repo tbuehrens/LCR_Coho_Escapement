@@ -110,6 +110,8 @@ thin=1
 burn=1000
 iter=4000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
+
+results_name<-"Results_2023-06-26"
 ```
 
 # Load & Combine Data for Old JAGs Model
@@ -809,11 +811,11 @@ standat<-readRDS(file.path(csv.data.dir,paste0("standata_",GRTSdat.date,".rds"))
 #======================
 #create final data folder
 #=====================
-subDir<-paste("Results","_",Sys.Date(),sep="")
-if (!file.exists(file.path(results.dir, subDir))){
-  dir.create(file.path(results.dir, subDir))
-}
 if(fit_Stan == TRUE){
+  subDir<-paste("Results","_",Sys.Date(),sep="")
+  if (!file.exists(file.path(results.dir, subDir))){
+    dir.create(file.path(results.dir, subDir))
+  }
   #=============
   #compile model
   #=============
@@ -840,12 +842,11 @@ if(fit_Stan == TRUE){
   write.csv(summary,file.path(results.dir,subDir,"Stan_summary.csv"))
   res<-rstan::extract(stanfit)
 }else{
+  subDir<-results_name
   stanfit<-readRDS(file.path(results.dir,subDir,"stanfit.RDS"))
   res<-rstan::extract(stanfit)
 }
 ```
-
-
 
 
 # Summarize Results (Stan)
