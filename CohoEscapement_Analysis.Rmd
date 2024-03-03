@@ -54,7 +54,8 @@ packages_list<-c(
   "dplyr",
   "janitor",
   "scales",
-  "gridExtra"
+  "gridExtra",
+  "ggcorrplot"
 )
 install_or_load_pack(pack = packages_list)
 ```
@@ -849,9 +850,8 @@ if(fit_Stan == TRUE){
 ```
 
 
-# Summarize Results (Stan)
+# Summarize GRTS and TRT Results 
 ```{r }
-
 #name columns by GRTSpop
 GRTSpop_params<-c("Adults","M_ad","UM_ad","pF","pM")
 for(i in 1:length(GRTSpop_params)){
@@ -974,52 +974,10 @@ for(i in 1:length(names(TRTresults))){
   TRT_results_filename<-file.path(results.dir, subDir,paste0(years[1],"_",years[length(years)],"_Coho_TRT_",names(TRTresults)[i],".csv"))
   write.csv(temp2,TRT_results_filename,row.names = FALSE)
 }
+```
 
-
-#==============================
-#Cowlitz Report Plots
-#======================
-#set year
-# yr=10
-# 
-# #redd density for the Lower Cowlitz
-# pdf(paste("Redds per mile in Lower Cowlitz GRTS reaches ",years[yr],".pdf",sep=""))
-# library(RColorBrewer)
-# cols<-brewer.pal(5,name="BuGn")
-# par(new=F)
-# xvals<-c(0:100)
-# max.x<-50
-# lambda<-matrix(NA,dim(jagsfit$BUGSoutput$sims.list$pp)[1],length(xvals))
-# for(i in 1:dim(jagsfit$BUGSoutput$sims.list$pp)[1]){
-#   lambda[i,1:length(xvals)]<-dnbinom(xvals,prob=jagsfit$BUGSoutput$sims.list$pp[i,10,yr],size=jagsfit$BUGSoutput$sims.list$rr[i,10])
-#   lambda[i,1:length(xvals)]<-lambda[i,1:length(xvals)]/max(lambda[i,1:length(xvals)])
-# }
-# lambda_mu<-apply(lambda,2,mean)
-# lambda_quants<-t(apply(lambda,2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975))))
-# plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Distribution of Redds per Mile \n in GRTS Reaches below weirs")
-# #matlines(y=lambda_quants,x=matrix(rep(xvals,5),nrow=length(xvals),ncol=5),col=brewer.pal(5,name="RdYlBu"),lwd=2,lty=1)
-# for(i in 1:2){
-#   polygon(x=c(xvals,rev(xvals)),y=c(lambda_quants[,i],rev(lambda_quants[,6-i])),col=cols[i+1],lty="blank")
-# }
-# lines(x=xvals,y=lambda_quants[,3],lwd=2)
-# axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
-# axis(2,seq(from=0,to=1,by=(1/4)),las=2)
-# dev.off()
-# 
-# pdf(paste("Lower Cowlitz mean redd density ",years[yr],".pdf",sep=""))
-# mu_den<-density(jagsfit$BUGSoutput$sims.list$mu[,10,yr])
-# plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Mean Redds per Mile")
-# lines(y=(mu_den$y/max(mu_den$y)),x=mu_den$x,lwd=2,col=cols[4])
-# axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
-# axis(2,seq(from=0,to=1,by=(1/4)),las=2)
-# dev.off()
-# 
-# jagsdat$y[10,,yr]
-# 
-# write.csv(data.frame(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10]),paste("lower Cowlitz_pp_rr_",years[yr],".csv",sep=""),row.names = F)
-# plot(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10])
-
-
+## Summarize Cowlitz Specific Results
+```{r}
 
 # ===============
 # Cowlitz Results
@@ -1094,22 +1052,25 @@ rownames(WE)[6:7]<-c("mean","sd")
 WE<-t(WE)
 rownames(WE)<-CowlitzNames[2:5]
 write.csv(WE,file.path(results.dir, subDir, paste0("Cowlitz_Tribs_Weir_Efficiency_",2009+yrs,"_",Sys.Date(),".csv")))
+```
 
+## Main Model Tables
+```{r}
 #=============================
 #new plots 12.16.2019
 #====================
 poporder<-unique(as.character(GRTSpops$TRT_Population))
-poporder<-c(poporder[!poporder%in%c("",NA)],"LCR ESU")
+poporder<-c(poporder[!poporder%in%c("",NA)],"WA LCR ESU")
 TRT_miles<-data.frame(GRTSpops%>%group_by(TRT_Population)%>%summarise(TRT_F_miles=sum(F_miles)))
 TRT_miles<-TRT_miles[!TRT_miles$TRT_Population%in%c("",NA),]
-TRT_miles<-TRT_miles%>%group_by(TRT_Population)%>%adorn_totals("row",name="LCR ESU")
+TRT_miles<-TRT_miles%>%group_by(TRT_Population)%>%adorn_totals("row",name="WA LCR ESU")
 
 UM_ad_results<-data.frame(melt(apply(TRTresults$UM_ad,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
 colnames(UM_ad_results)<-c("Quantile","Population","Year","UM_ad")
 UM_ad_results<-UM_ad_results[!UM_ad_results$Population%in%c("",NA),]
 UM_ad_results$Population<-as.character(UM_ad_results$Population)
 UM_ESUtot<-data.frame(melt(apply(apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-UM_ESUtot$Population<-"LCR ESU"
+UM_ESUtot$Population<-"WA LCR ESU"
 UM_ESUtot$Population<-as.character(UM_ESUtot$Population)
 colnames(UM_ESUtot)<-c("Quantile","Year","UM_ad","Population")
 UM_ad_results<-bind_rows(UM_ad_results,UM_ESUtot)
@@ -1125,7 +1086,7 @@ colnames(M_ad_results)<-c("Quantile","Population","Year","M_ad")
 M_ad_results<-M_ad_results[!M_ad_results$Population%in%c("",NA),]
 M_ad_results$Population<-as.character(M_ad_results$Population)
 M_ESUtot<-data.frame(melt(apply(apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-M_ESUtot$Population<-"LCR ESU"
+M_ESUtot$Population<-"WA LCR ESU"
 M_ESUtot$Population<-as.character(M_ESUtot$Population)
 colnames(M_ESUtot)<-c("Quantile","Year","M_ad","Population")
 M_ad_results<-bind_rows(M_ad_results,M_ESUtot)
@@ -1144,7 +1105,7 @@ pM_results$Population<-as.character(pM_results$Population)
 M_ESUtot<-apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum)
 UM_ESUtot<-apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum)
 pM_ESUtot<-data.frame(melt(apply(M_ESUtot/(M_ESUtot+UM_ESUtot),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-pM_ESUtot$Population<-"LCR ESU"
+pM_ESUtot$Population<-"WA LCR ESU"
 pM_ESUtot$Population<-as.character(pM_ESUtot$Population)
 colnames(pM_ESUtot)<-c("Quantile","Year","pM","Population")
 pM_results<-bind_rows(pM_results,pM_ESUtot)
@@ -1170,8 +1131,32 @@ Results_Table1<-merge(NOR,HOR,by="Population",suffixes = c(".NOR",".HOR"))
 Results_Table1<-merge(Results_Table1,NOR_Density,by="Population")
 Results_Table1<-merge(Results_Table1,pM,by="Population")
 Results_Table1<-merge(Results_Table1,NOR_goal,all=TRUE)
-write.csv(Results_Table1,file.path(results.dir,subDir,"Results_Table1.csv"),row.names = FALSE)
 
+Results_Table1%<>%
+  as_tibble()%>%
+  mutate(
+    across(c(min.NOR,med.NOR,max.NOR,min.HOR,med.HOR,max.HOR),~round(.)),
+    across(c(min.NOR_Density,med.NOR_Density,max.NOR_Density,min.pHOS,med.PHOS,max.pHOS),~round(.,2)),
+    n=ifelse(is.na(n),0,n),
+    prop_abv_goal = scales::percent(n/length(years)),
+    range_NOR =paste0("(",min.NOR,"-",max.NOR,")"),
+    range_NOR_density =paste0("(",min.NOR_Density,"-",max.NOR_Density,")"),
+    range_HOR =paste0("(",min.HOR,"-",max.HOR,")"),
+    range_pHOS =paste0("(",min.pHOS,"-",max.pHOS,")")
+  )%>%
+  dplyr::select(
+    Population, Recovery.Goal,n,prop_abv_goal,med.NOR,range_NOR,med.NOR_Density,range_NOR_density,med.PHOS,range_pHOS,med.HOR,range_HOR
+  )
+    
+  
+
+
+write.csv(Results_Table1,file.path(results.dir,subDir,"Results_Table1.csv"),row.names = FALSE)
+```
+
+
+## Main Model Plots
+```{r}
 #unmarked plot
 p<-ggplot(arrange(transform(UM_ad_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."))) +
   geom_line(size=1)+
@@ -1179,10 +1164,11 @@ p<-ggplot(arrange(transform(UM_ad_results,Population=factor(Population,levels=po
   facet_wrap(~Population,scales="free") +
   aes(ymin=0) +
   labs(x="Year",y="Spawner Abundance") +
+  scale_x_continuous(breaks = seq(min(UM_ad_results$Year), max(UM_ad_results$Year), by = 4)) +
   theme_bw()
   
 print(p)
-ggsave(file.path(results.dir,subDir,"UM_ad.pdf"),
+ggsave(file.path(results.dir,subDir,"UM_ad.png"),
        plot=p,
        width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
        scale=1.75,
@@ -1197,10 +1183,11 @@ p<-ggplot(arrange(transform(Abundance_results,Population=factor(Population,level
   geom_hline(data = arrange(transform(Abundance_results,Population=factor(Population,levels=poporder))), aes(yintercept = Recovery.Goal,group = Population), size=1,linetype = "dashed",color="black")+
   aes(ymin=0) +
   labs(x="Year",y="Spawner Abundance") +
+  scale_x_continuous(breaks = seq(min(Abundance_results$Year), max(Abundance_results$Year), by = 4)) +
   theme_bw()
 
 print(p)
-ggsave(file.path(results.dir,subDir,"Abundance.pdf"),
+ggsave(file.path(results.dir,subDir,"Abundance.png"),
        plot=p,
        width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
        scale=1.75,
@@ -1214,10 +1201,11 @@ p<-ggplot(arrange(transform(pM_results,Population=factor(Population,levels=popor
   facet_wrap(~Population) +
   aes(ymin=0,ymax=1) +
   labs(x="Year",y="Proportion Hatchery Origin Spawners") +
+  scale_x_continuous(breaks = seq(min(pM_results$Year), max(pM_results$Year), by = 4)) +
   theme_bw()
 
 print(p)
-ggsave(file.path(results.dir,subDir,"pM.pdf"),
+ggsave(file.path(results.dir,subDir,"pM.png"),
        plot=p,
        width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
        scale=1.75,
@@ -1238,10 +1226,13 @@ p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=
   theme_bw() +
   theme(panel.grid.minor = element_line(color="grey80", linetype="solid"), panel.grid.major = element_line(color="grey80", linetype="solid")) +
   annotation_logticks(base = 10)+
+  scale_x_continuous(breaks = seq(min(Density_results$Year), max(Density_results$Year), by = 4)) +
+  coord_cartesian(ylim = c(0.1,100))+ 
+  theme_bw()+
   labs(x="Year",y="Spawners per Km")
 
 print(p)
-ggsave(file.path(results.dir,subDir,"Density.pdf"),
+ggsave(file.path(results.dir,subDir,"Density.png"),
        plot=p,
        width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
        scale=1.75,
@@ -1250,7 +1241,7 @@ ggsave(file.path(results.dir,subDir,"Density.pdf"),
 
 #
 Recovery_Goals<-merge(Recovery_Goals,TRT_miles)
-Recovery_Goals<-Recovery_Goals[!is.na(Recovery_Goals$Recovery.Goal) & Recovery_Goals$TRT_Population!="LCR ESU",]
+Recovery_Goals<-Recovery_Goals[!is.na(Recovery_Goals$Recovery.Goal) & Recovery_Goals$TRT_Population!="WA LCR ESU",]
 Recovery_Goals$Recovery.Goal<-as.numeric(Recovery_Goals$Recovery.Goal)
 p<-ggplot(Recovery_Goals,aes(x=TRT_F_miles*1.60934, y=Recovery.Goal,color=Recovery.Designation)) +
    geom_point(size=2)+
@@ -1259,8 +1250,9 @@ p<-ggplot(Recovery_Goals,aes(x=TRT_F_miles*1.60934, y=Recovery.Goal,color=Recove
   #scale_x_log10()+
   aes(ymin=100) +
   theme_classic()
+
 print(p)
-ggsave(file.path(results.dir,subDir,"Recovery Goal vs Kilometers.pdf"),
+ggsave(file.path(results.dir,subDir,"Recovery Goal vs Kilometers.png"),
        plot=p,
        width = 4, height = 3, dpi = 300, limitsize = TRUE,
        scale=1.75,
@@ -1310,528 +1302,139 @@ p<-ggplot(data = df, aes(x=pF, group=GRTS_Population)) +
   geom_density(alpha = 0.1,fill='black', linetype='blank') +
   theme_bw()+
   geom_density(data=hier_pF,mapping=aes(x=hier_pF),alpha = 1,linetype='solid',color=rgb(0.2,0.2,0.6,1),size=1.25)+
-  labs(x="Proportion of Females",y="Kernel Density") +
-  aes(xmin=0.25,xmax=0.75) 
-  print(p)
+  labs(x="Proportion of Females",y="Kernel Density") 
+  #aes(xmin=0.25,xmax=0.75) 
 
   RpF <- data.frame(res$RpF)%>%
     dplyr::rename(RpF=res.RpF)
+  
   p2<-ggplot(data = RpF)+ 
     geom_density(aes(x=RpF),alpha = 0.4,fill='black') +
     theme_bw()+
     #geom_density(data=hier_pF,aes(x=hier_pF),alpha = 1,linetype='solid',color=cols[1],size=1.25)+
-    labs(x="Redds per Female",y="Kernel Density")+
-    aes(xmin=0,xmax=1) 
-  print(p2)
+    labs(x="Redds per Female",y="Kernel Density")
+    #aes(xmin=0,xmax=1) 
+
 
 p3<-grid.arrange(p, p2, nrow = 1)
-ggsave(file.path(results.dir,subDir,"RpF_pF.pdf"),
+ggsave(file.path(results.dir,subDir,"RpF_pF.png"),
        plot=p3,
        width = 6.5, height = 3, dpi = 300, limitsize = TRUE,
        scale=1.75,
        units = c("in")
 )
 
-```
 
 
-# Summarize Results (JAGS)
-```{r }
-if(fit_JAGS==TRUE){
+Abundance_corr_dat<-Abundance_results%>%
+  filter(Origin=="Wild", Population!="WA LCR ESU")%>%
+  dplyr::select(Population,Year,X50.)%>%
+  pivot_wider(names_from = Population,values_from = X50.)%>%
+  arrange(Year)%>%
+  dplyr::select(-Year)
   
-  modeldate="2020-08-04"
-  
-  load_jagsfit<-function(modeldate){
-    subDir<-paste("Coho","Results","allredds_ss",modeldate,sep="_")
-    setwd(file.path(results.dir, subDir))
-    print(getwd())
-    load(paste("modelfit",model.file,modeldate,".rda",sep="_"))
-  }
-  
-  #load_jagsfit(modeldate=modeldate)
-  
-  #name columns by GRTSpop
-  GRTSpop_params<-c("Adults","M_ad","UM_ad","pF","pM")
-  for(i in 1:length(GRTSpop_params)){
-    jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==GRTSpop_params[i]]<-lapply(jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==GRTSpop_params[i]], function(x) {colnames(x) <- rownames(jagsdat$Y); x})
-  }
-  
-  jagsfit$BUGSoutput$sims.list$Adults<-jagsfit$BUGSoutput$sims.list$M_ad+jagsfit$BUGSoutput$sims.list$UM_ad
-  jagsfit$BUGSoutput$sims.list$pM<-jagsfit$BUGSoutput$sims.list$M_ad/(jagsfit$BUGSoutput$sims.list$M_ad+jagsfit$BUGSoutput$sims.list$UM_ad)
-  #=============================
-  #Print out results by GRTS pop
-  #=============================
-  for(i in 1:length(GRTSpop_params)){
-    sims<-jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==GRTSpop_params[i]]
-    for(j in 1:yrs){
-      temp<-NULL
-      temp<-apply(sims[[1]][,,j],2,function(x) quantile(x,c(0.025,0.5,0.975)))
-      temp<-temp[,colnames(temp)!=""]
-      means<-NULL
-      means<-colMeans(sims[[1]][,,j])
-      means<-means[names(means)!=""]
-      sd<-NULL
-      sd<-apply(sims[[1]][,,j],2,sd)
-      sd<-sd[names(sd)!=""]
-      temp<-data.frame(means,sd,t(temp))
-      if(!names(sims)[1]%in%c("pM","pF","p_index","")){temp<-round(temp)}
-      if(names(sims)[1]%in%c("pM","pF","p_index")){temp<-round(temp,3)}
-      #=====================
-      #combine years results
-      #=====================
-      temp$Population<-rownames(temp)
-      temp$Year<-years[j]
-      temp<-temp[,c(c(dim(temp)[2]-1),dim(temp)[2],1:c(dim(temp)[2]-2))]
-      colnames(temp)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
-      if(j==1){temp2<-temp}else{temp2<-data.frame(rbind(temp2,temp))}
-      colnames(temp2)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
-      subDir<-paste("Coho","Results","allredds_ss",modeldate,sep="_")
-      setwd(file.path(home.dir,results.dir, subDir))
-      #======================
-      # Year specific Results
-      #======================
-      colnames(temp)<-c("Mean","sd","lower 95% CI", "Median","Upper 95%CI")
-      # if (file.exists(subDir)){
-      #   setwd(file.path(results.dir, subDir,years[j]))
-      # } else {
-      #   dir.create(file.path(results.dir, subDir,years[j]))
-      #   setwd(file.path(results.dir, subDir,years[j]))
-      # }
-      # write.csv(temp,paste(years[j],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = T)
-      
-    }
-    write.csv(temp2,paste(years[1],"_",years[length(years)],"_Coho_GRTSpop_",names(sims)[1],".csv",sep=""),row.names = F)
-  }
-  
-  
-  
-  #==========
-  #TRT params
-  #==========
-  TRTpop_params<-c("M_ad","UM_ad") #pM, Adult total
-  TRTpops<-data.frame(read.csv(paste(home.dir,csv.data.dir,frame_file.name,sep="/")))$TRT_Population
-  TRTresults<-list(NULL)
-  for(i in 1:length(TRTpop_params)){
-    temp<-NULL
-    temp<-lapply(jagsfit$BUGSoutput$sims.list[names(jagsfit$BUGSoutput$sims.list)==TRTpop_params[i]], function(x) {colnames(x) <-TRTpops; x})
-    TRTresults[[i]]<-array(NA,dim=c(jagsfit$BUGSoutput$n.sims,length(unique(TRTpops)),yrs))
-    dimnames(TRTresults[[i]])[[3]]<-years
-    names(TRTresults)[i]<-TRTpop_params[i]
-    for (j in 1:yrs){
-      TRTresults[[i]][,,j]<-t(rowsum(t(temp[[1]][,,j]), group = colnames(temp[[1]][,,j]), na.rm = T))
-      dimnames(TRTresults[[i]])[[2]]<-unique(TRTpops[order(TRTpops)])
-      
-    }
-  }
-  TRTresults$Adults<-TRTresults$M_ad+TRTresults$UM_ad
-  TRTresults$pM<-TRTresults$M_ad/(TRTresults$M_ad+TRTresults$UM_ad)
-  
-  for(i in 1:length(names(TRTresults))){
-    for(j in 1:yrs){
-      temp<-NULL
-      temp<-apply(TRTresults[[i]][,,j],2,function(x) quantile(x,c(0.025,0.5,0.975)))
-      temp<-temp[,colnames(temp)!=""]
-      means<-NULL
-      means<-colMeans(TRTresults[[i]][,,j])
-      means<-means[names(means)!=""]
-      sd<-NULL
-      sd<-apply(TRTresults[[i]][,,j],2,sd)
-      sd<-sd[names(sd)!=""]
-      temp<-data.frame(means,sd,t(temp))
-      if(!names(TRTresults)[i]%in%c("pM")){temp<-round(temp)}
-      if(names(TRTresults)[i]%in%c("pM")){temp<-round(temp,3)}
-      #=====================
-      #combine years results
-      #=====================
-      temp$Population<-rownames(temp)
-      temp$Year<-years[j]
-      temp<-temp[,c(c(dim(temp)[2]-1),dim(temp)[2],1:c(dim(temp)[2]-2))]
-      colnames(temp)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
-      if(j==1){temp2<-temp}else{temp2<-data.frame(rbind(temp2,temp))}
-      colnames(temp2)<-c("Population","Year","Mean","sd","lower 95% CI", "Median","Upper 95%CI")
-      subDir<-paste("Coho","Results","allredds_ss",modeldate,sep="_")
-      setwd(file.path(home.dir,results.dir, subDir))
-      #======================
-      # Year specific Results
-      #======================
-      colnames(temp)<-c("Mean","sd","lower 95% CI", "Median","Upper 95%CI")
-      # if (file.exists(subDir)){
-      #   setwd(file.path(results.dir, subDir,years[j]))
-      # } else {
-      #   dir.create(file.path(results.dir, subDir,years[j]))
-      #   setwd(file.path(results.dir, subDir,years[j]))
-      # }
-      # write.csv(temp,paste(years[j],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = T)
-      
-    }
-    write.csv(temp2,paste(years[1],"_",years[length(years)],"_Coho_TRT_",names(TRTresults)[i],".csv",sep=""),row.names = F)
-  }
-  
-  
-  #==============================
-  #Cowlitz Report Plots
-  #======================
-  #set year
-  # yr=10
-  # 
-  # #redd density for the Lower Cowlitz
-  # pdf(paste("Redds per mile in Lower Cowlitz GRTS reaches ",years[yr],".pdf",sep=""))
-  # library(RColorBrewer)
-  # cols<-brewer.pal(5,name="BuGn")
-  # par(new=F)
-  # xvals<-c(0:100)
-  # max.x<-50
-  # lambda<-matrix(NA,dim(jagsfit$BUGSoutput$sims.list$pp)[1],length(xvals))
-  # for(i in 1:dim(jagsfit$BUGSoutput$sims.list$pp)[1]){
-  #   lambda[i,1:length(xvals)]<-dnbinom(xvals,prob=jagsfit$BUGSoutput$sims.list$pp[i,10,yr],size=jagsfit$BUGSoutput$sims.list$rr[i,10])
-  #   lambda[i,1:length(xvals)]<-lambda[i,1:length(xvals)]/max(lambda[i,1:length(xvals)])
-  # }
-  # lambda_mu<-apply(lambda,2,mean)
-  # lambda_quants<-t(apply(lambda,2,function(x) quantile(x,c(0.025,0.25,0.5,0.75,0.975))))
-  # plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Distribution of Redds per Mile \n in GRTS Reaches below weirs")
-  # #matlines(y=lambda_quants,x=matrix(rep(xvals,5),nrow=length(xvals),ncol=5),col=brewer.pal(5,name="RdYlBu"),lwd=2,lty=1)
-  # for(i in 1:2){
-  #   polygon(x=c(xvals,rev(xvals)),y=c(lambda_quants[,i],rev(lambda_quants[,6-i])),col=cols[i+1],lty="blank")
-  # }
-  # lines(x=xvals,y=lambda_quants[,3],lwd=2)
-  # axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
-  # axis(2,seq(from=0,to=1,by=(1/4)),las=2)
-  # dev.off()
-  # 
-  # pdf(paste("Lower Cowlitz mean redd density ",years[yr],".pdf",sep=""))
-  # mu_den<-density(jagsfit$BUGSoutput$sims.list$mu[,10,yr])
-  # plot(x=1,y=1,type="n",xlim=c(0,max.x),ylim=c(0,1),xaxs="i",yaxs="i",xaxt="n",yaxt="n",ylab="Relative probability",xlab="Mean Redds per Mile")
-  # lines(y=(mu_den$y/max(mu_den$y)),x=mu_den$x,lwd=2,col=cols[4])
-  # axis(1,seq(from=min(xvals),to=max.x,by=round(max.x/4)))
-  # axis(2,seq(from=0,to=1,by=(1/4)),las=2)
-  # dev.off()
-  # 
-  # jagsdat$y[10,,yr]
-  # 
-  # write.csv(data.frame(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10]),paste("lower Cowlitz_pp_rr_",years[yr],".csv",sep=""),row.names = F)
-  # plot(jagsfit$BUGSoutput$sims.list$pp[,10,yr],jagsfit$BUGSoutput$sims.list$rr[,10])
-  
-  
-  
-  # ===============
-  # Cowlitz Results
-  # ==============
-  #set year
-  #yr=max(years)
-  colnames(jagsfit$BUGSoutput$sims.list$Adults)<-GRTSdat$GRTS_Population
-  CowlitzNames<-c("Lower Cowlitz",
-                  "Delameter_Above Weir",
-                  "Lacamas_Above Weir",
-                  "Olequa_Above Weir",
-                  "Ostrander_Above Weir"
+corrplot<-Abundance_corr_dat%>%  
+  cor()%>%
+  ggcorrplot(hc.order = TRUE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05, lab_size = 2)
+
+
+Abundance_corr<-Abundance_corr_dat%>%
+  cor()%>%
+  round(.,2)%>%
+  data.frame()%>%
+  rownames_to_column(var="Population")%>%
+  as_tibble()
+
+corr_rank_plot<-Abundance_corr %>%
+  pivot_longer(names_to = "corr_pop", values_to = "corr", cols = c(-Population)) %>%
+  group_by(Population) %>%
+  summarise(mean_correlation = mean(corr)) %>%
+  arrange(desc(mean_correlation)) %>%
+  mutate(Population = factor(Population, levels = Population)) %>%  # Reorder levels based on mean correlation
+  ggplot(aes(y = mean_correlation, x = Population)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(y = "Mean Pairwise Correlation", x = "Population") +
+  coord_flip() +
+  theme_minimal()+
+  theme(
+    text = element_text(size = 14)
   )
-  Cowlitz_Results<-NULL
-  for(i in 1:yrs){
-    LowerCowlitz_DIP_Adults<-apply(jagsfit$BUGSoutput$sims.list$Adults[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
-    #plot(density(LowerCowlitz_DIP_Adults))
-    Cowlitz_Adults<-apply(data.frame(LowerCowlitz_DIP_Adults,jagsfit$BUGSoutput$sims.list$Adults[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]),2,function(x) c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
-    Cowlitz_Adults<-data.frame(t(Cowlitz_Adults),i+2009)
-    Cowlitz_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
-    colnames(Cowlitz_Adults)[6:8]<-c("mean","sd","year")
-    Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_Adults)
-    rownames(Cowlitz_Results)<-NULL
-  }
-  write.csv(Cowlitz_Results,paste("Cowlitz_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
-  
-  Cowlitz_Results<-NULL
-  for(i in 1:yrs){
-    LowerCowlitz_DIP_NOR_Adults<-apply(jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
-    #plot(density(LowerCowlitz_DIP_NOR_Adults))
-    Cowlitz_NOR_Adults<-apply(data.frame(LowerCowlitz_DIP_NOR_Adults,jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
-    Cowlitz_NOR_Adults<-data.frame(t(Cowlitz_NOR_Adults),i+2009)
-    Cowlitz_NOR_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
-    colnames(Cowlitz_NOR_Adults)[6:8]<-c("mean","sd","year")
-    Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_NOR_Adults)
-    rownames(Cowlitz_Results)<-NULL
-  }
-  write.csv(Cowlitz_Results,paste("Cowlitz_NOR_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
-  
-  Cowlitz_Results<-NULL
-  for(i in 1:yrs){
-    LowerCowlitz_DIP_HOR_Adults<-apply(jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
-    #plot(density(LowerCowlitz_DIP_NOR_Adults))
-    Cowlitz_HOR_Adults<-apply(data.frame(LowerCowlitz_DIP_HOR_Adults,jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
-    Cowlitz_HOR_Adults<-data.frame(t(Cowlitz_HOR_Adults),i+2009)
-    Cowlitz_HOR_Adults$Population<-c("Lower Cowlitz DIP",CowlitzNames)
-    colnames(Cowlitz_HOR_Adults)[6:8]<-c("mean","sd","year")
-    Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_HOR_Adults)
-    rownames(Cowlitz_Results)<-NULL
-  }
-  write.csv(Cowlitz_Results,paste("Cowlitz_HOR_Adults_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
-  
-  Cowlitz_Results<-NULL
-  for(i in 1:yrs){
-    pM<-data.frame(jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]/(jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]+jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i]))
-    LowerCowlitz_DIP_Adults<-apply(jagsfit$BUGSoutput$sims.list$Adults[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
-    LowerCowlitz_DIP_HOR_Adults<-apply(jagsfit$BUGSoutput$sims.list$M_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames,i],1,sum)
-    LowerCowlitz_DIP_pM<-LowerCowlitz_DIP_HOR_Adults/LowerCowlitz_DIP_Adults
-    Cowlitz_pM<-apply(data.frame(LowerCowlitz_DIP_pM,pM),2,function(x)  c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
-    Cowlitz_pM<-data.frame(t(Cowlitz_pM),i+2009)
-    Cowlitz_pM$Population<-c("Lower Cowlitz DIP",CowlitzNames)
-    colnames(Cowlitz_pM)[6:8]<-c("mean","sd","year")
-    Cowlitz_Results<-rbind(Cowlitz_Results,Cowlitz_pM)
-    rownames(Cowlitz_Results)<-NULL
-  }
-  write.csv(Cowlitz_Results,paste("Cowlitz_pM_2010_",2009+yrs,"_",Sys.Date(),".csv",sep=""),row.names = F)
-  
-  #weir efficiency
-  WC<-jagsdat$n1[colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames[2:5],yr]
-  WC<-t(matrix(rep(WC,jagsfit$BUGSoutput$n.sims),ncol=jagsfit$BUGSoutput$n.sims,nrow=4))
-  WE<-WC/jagsfit$BUGSoutput$sims.list$UM_ad[,colnames(jagsfit$BUGSoutput$sims.list$Adults)%in%CowlitzNames[2:5],yr]
-  WE<-apply(WE,2,function(x) c(quantile(x,c(0.025,0.25,0.5,0.75,0.975)),mean(x),sd(x)))
-  rownames(WE)[6:7]<-c("mean","sd")
-  WE<-t(WE)
-  rownames(WE)<-CowlitzNames[2:5]
-  write.csv(WE,paste("Cowlitz_Tribs_Weir_Efficiency_",years[yr],".csv",sep=""))
-  
-  
-  #=============================
-  #new plots 12.16.2019
-  #====================
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-  library(janitor)
-  library(scales)
-  library(gridExtra)
-  
-  
-  poporder<-unique(as.character(GRTSpops$TRT_Population))
-  poporder<-c(poporder[!poporder%in%c("",NA)],"LCR ESU")
-  TRT_miles<-data.frame(GRTSpops%>%group_by(TRT_Population)%>%summarise(TRT_F_miles=sum(F_miles)))
-  TRT_miles<-TRT_miles[!TRT_miles$TRT_Population%in%c("",NA),]
-  TRT_miles<-TRT_miles%>%group_by(TRT_Population)%>%adorn_totals("row",name="LCR ESU")
-  
-  UM_ad_results<-data.frame(melt(apply(TRTresults$UM_ad,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-  colnames(UM_ad_results)<-c("Quantile","Population","Year","UM_ad")
-  UM_ad_results<-UM_ad_results[!UM_ad_results$Population%in%c("",NA),]
-  UM_ad_results$Population<-as.character(UM_ad_results$Population)
-  UM_ESUtot<-data.frame(melt(apply(apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-  UM_ESUtot$Population<-"LCR ESU"
-  UM_ESUtot$Population<-as.character(UM_ESUtot$Population)
-  colnames(UM_ESUtot)<-c("Quantile","Year","UM_ad","Population")
-  UM_ad_results<-bind_rows(UM_ad_results,UM_ESUtot)
-  UM_ad_density_results<-merge(UM_ad_results,TRT_miles,by.x="Population",by.y="TRT_Population")
-  UM_ad_results<-UM_ad_results%>%spread(Quantile,UM_ad)
-  UM_ad_results$Origin<-"Wild"
-  UM_ad_density_results$Density<-UM_ad_density_results$UM_ad/(UM_ad_density_results$TRT_F_miles*1.60934)
-  UM_ad_density_results<-UM_ad_density_results%>%select(Population, Year, Quantile, Density)%>%spread(Quantile,Density)
-  UM_ad_density_results$Origin<-"Wild"
-  
-  M_ad_results<-data.frame(melt(apply(TRTresults$M_ad,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-  colnames(M_ad_results)<-c("Quantile","Population","Year","M_ad")
-  M_ad_results<-M_ad_results[!M_ad_results$Population%in%c("",NA),]
-  M_ad_results$Population<-as.character(M_ad_results$Population)
-  M_ESUtot<-data.frame(melt(apply(apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-  M_ESUtot$Population<-"LCR ESU"
-  M_ESUtot$Population<-as.character(M_ESUtot$Population)
-  colnames(M_ESUtot)<-c("Quantile","Year","M_ad","Population")
-  M_ad_results<-bind_rows(M_ad_results,M_ESUtot)
-  M_ad_density_results<-merge(M_ad_results,TRT_miles,by.x="Population",by.y="TRT_Population")
-  M_ad_results<-M_ad_results%>%spread(Quantile,M_ad)
-  M_ad_results$Origin<-"Hatchery"
-  M_ad_density_results$Density<-M_ad_density_results$M_ad/(M_ad_density_results$TRT_F_miles*1.60934)
-  M_ad_density_results<-M_ad_density_results%>%select(Population, Year, Quantile, Density)%>%spread(Quantile,Density)
-  M_ad_density_results$Origin<-"Hatchery"
-  
-  
-  pM_results<-melt(apply(TRTresults$pM,2:3,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975))))
-  colnames(pM_results)<-c("Quantile","Population","Year","pM")
-  pM_results<-pM_results[!pM_results$Population%in%c("",NA),]
-  pM_results$Population<-as.character(pM_results$Population)
-  M_ESUtot<-apply(TRTresults$M_ad[,!dimnames(TRTresults$M_ad)[[2]]%in%c("",NA),],c(1,3),sum)
-  UM_ESUtot<-apply(TRTresults$UM_ad[,!dimnames(TRTresults$UM_ad)[[2]]%in%c("",NA),],c(1,3),sum)
-  pM_ESUtot<-data.frame(melt(apply(M_ESUtot/(M_ESUtot+UM_ESUtot),2,function(x) quantile(x,probs=c(0.025,0.25,0.5,0.75,0.975)))))
-  pM_ESUtot$Population<-"LCR ESU"
-  pM_ESUtot$Population<-as.character(pM_ESUtot$Population)
-  colnames(pM_ESUtot)<-c("Quantile","Year","pM","Population")
-  pM_results<-bind_rows(pM_results,pM_ESUtot)
-  pM_results<-pM_results%>%spread(Quantile,pM)
-  
-  
-  Abundance_results<-data.frame(rbind(M_ad_results,UM_ad_results))
-  
-  Density_results<-data.frame(rbind(M_ad_density_results,UM_ad_density_results))
-  write.csv(Density_results,"Density_Results.csv")
-  
-  Recovery_Goals<-data.frame(read.csv(paste(csv.data.dir,"TRT_Population_Goals.csv",sep="/")))
-  
-  Abundance_results<-merge(Abundance_results,Recovery_Goals,by.x="Population",by.y="TRT_Population")
-  
-  NOR<-data.frame(Abundance_results%>%filter(Origin=="Wild")%>%group_by(Population)%>%summarise(Recovery.Goal=max(Recovery.Goal),med=median(X50.),min=min(X50.),max=max(X50.)))
-  NOR_goal<-data.frame(Abundance_results%>%filter(Origin=="Wild" & X50.>Recovery.Goal)%>%count(Population))
-  NOR_Density<-data.frame(Density_results%>%filter(Origin=="Wild")%>%group_by(Population)%>%summarise(med.NOR_Density=median(X50.),min.NOR_Density=min(X50.),max.NOR_Density=max(X50.)))
-  HOR<-data.frame(Abundance_results%>%filter(Origin=="Hatchery")%>%group_by(Population)%>%summarise(med=median(X50.),min=min(X50.),max=max(X50.)))
-  pM<-data.frame(pM_results%>%group_by(Population)%>%summarise(med.PHOS=median(`50%`),min.pHOS=min(`50%`),max.pHOS=max(`50%`)))
-  
-  Results_Table1<-merge(NOR,HOR,by="Population",suffixes = c(".NOR",".HOR"))
-  Results_Table1<-merge(Results_Table1,NOR_Density,by="Population")
-  Results_Table1<-merge(Results_Table1,pM,by="Population")
-  Results_Table1<-merge(Results_Table1,NOR_goal,all=TRUE)
-  write.csv(Results_Table1,"Results_Table1.csv",row.names = F)
-  
-  #unmarked plot
-  p<-ggplot(arrange(transform(UM_ad_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."))) +
-    geom_line(size=1)+
-    geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
-    facet_wrap(~Population,scales="free") +
-    aes(ymin=0) +
-    labs(x="Year",y="Spawner Abundance") +
-    theme_bw()
-    
-  print(p)
-  ggsave("UM_ad.pdf",
-         plot=p,
-         width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
-         scale=1.75,
-         units = c("in")
-         )
-  
-  #unmarked and marked plot
-  p<-ggplot(arrange(transform(Abundance_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("X50."),color=as.name("Origin"))) +
-    geom_line(size=1)+
-    geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5."),fill=as.name("Origin")), alpha=0.25,color=NA) + 
-    facet_wrap(~Population,scales="free") +
-    geom_hline(data = arrange(transform(Abundance_results,Population=factor(Population,levels=poporder))), aes(yintercept = Recovery.Goal,group = Population), size=1,linetype = "dashed",color="black")+
-    aes(ymin=0) +
-    labs(x="Year",y="Spawner Abundance") +
-    theme_bw()
-  
-  print(p)
-  ggsave("Abundance.pdf",
-         plot=p,
-         width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
-         scale=1.75,
-         units = c("in")
+
+
+pop_process_sd_plot<-apply(res$sigma_lambda,2,function(x) c("mean"=mean(x),"sd"=sd(x),quantile(x,c(0.025,0.25,0.5,0.75,0.975))))%>%
+  data.frame()%>%
+  rownames_to_column(var="parameter")%>%
+  as_tibble()%>%
+  pivot_longer(cols = -parameter, names_to = "column", values_to = "value")%>%
+  pivot_wider(names_from = parameter,values_from = value)%>%
+  bind_cols(sub_population=rownames(jagsdat$Y))%>%
+  dplyr::select(sub_population,population_process_error_SD=`50%`)%>%
+  arrange(population_process_error_SD)%>%
+  ggplot(aes(y =population_process_error_SD, x =reorder(sub_population, population_process_error_SD))) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(y = "Population Process Error SD", x = "Sub-population")+
+  coord_flip() +
+  theme_minimal()+
+  theme(
+    text = element_text(size = 14)
+  )
+
+ESU_process_var_prop_plot<-apply(median(res$sigma_lambda_all)^2/(res$sigma_lambda^2+median(res$sigma_lambda_all)^2),2,function(x) c("mean"=mean(x),"sd"=sd(x),quantile(x,c(0.025,0.25,0.5,0.75,0.975))))%>%
+  data.frame()%>%
+  rownames_to_column(var="parameter")%>%
+  as_tibble()%>%
+  pivot_longer(cols = -parameter, names_to = "column", values_to = "value")%>%
+  pivot_wider(names_from = parameter,values_from = value)%>%
+  bind_cols(sub_population=rownames(jagsdat$Y))%>%
+  dplyr::select(sub_population,ESU_process_var_proportion=`50%`)%>%
+  arrange(ESU_process_var_proportion)%>%
+  ggplot(aes(y =ESU_process_var_proportion, x =reorder(sub_population, ESU_process_var_proportion))) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(y = "Proportion Process Variance ESU-scale", x = "Sub-population")+
+  coord_flip() +
+  theme_minimal()+
+  theme(
+    text = element_text(size = 14)
   )
   
-  #phos plot
-  p<-ggplot(arrange(transform(pM_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("X50."))) +
-    geom_line(size=1)+
-    geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
-    facet_wrap(~Population) +
-    aes(ymin=0,ymax=1) +
-    labs(x="Year",y="Proportion Hatchery Origin Spawners") +
-    theme_bw()
+
+
+
+panel_labels<-c(letters[1:4])
+
+p3<-grid.arrange(
+  arrangeGrob(
+    corrplot,
+    top = grid::textGrob(paste0("(",panel_labels[1],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+  arrangeGrob(
+    corr_rank_plot,
+    top = grid::textGrob(paste0("(",panel_labels[2],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+  arrangeGrob(
+    pop_process_sd_plot,
+    top = grid::textGrob(paste0("(",panel_labels[3],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+  arrangeGrob(
+    ESU_process_var_prop_plot,
+    top = grid::textGrob(paste0("(",panel_labels[4],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ),
+  nrow = 2
+)
   
-  print(p)
-  ggsave("pM.pdf",
-         plot=p,
-         width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
-         scale=1.75,
-         units = c("in")
-  )
-  
-  #density plot
-  p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."),color=as.name("Origin"))) +
-    geom_line(size=1)+
-    facet_wrap(~Population) + #,scales ="free"
-    geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5."),fill=as.name("Origin")), alpha=0.25,color=NA) + 
-    #ylim(0.0,200) +
-    # #scale_y_log10(breaks=c(0.001,0.01,0.1,1,10,100),labels=c(0.001,0.01,0.1,1,10,100),limits = c(.001,200),expand=c(0,0)) +
-    # #scale_y_log10()+
-    scale_y_log10(limits = c(0.001, 180),
-                  labels = trans_format("log10", math_format(10^.x)),
-                  breaks=trans_breaks("log10", function(x) 10^x, n=4)) +
-    theme_bw() +
-    theme(panel.grid.minor = element_line(color="grey80", linetype="solid"), panel.grid.major = element_line(color="grey80", linetype="solid")) +
-    annotation_logticks(base = 10)+
-    labs(x="Year",y="Spawners per Km")
-  
-  print(p)
-  ggsave("Density.pdf",
-         plot=p,
-         width = 6.5, height = 5, dpi = 300, limitsize = TRUE,
-         scale=1.75,
-         units = c("in")
-  )
-  
-  #
-  Recovery_Goals<-merge(Recovery_Goals,TRT_miles)
-  Recovery_Goals<-Recovery_Goals[!is.na(Recovery_Goals$Recovery.Goal) & Recovery_Goals$TRT_Population!="LCR ESU",]
-  Recovery_Goals$Recovery.Goal<-as.numeric(Recovery_Goals$Recovery.Goal)
-  p<-ggplot(Recovery_Goals,aes(x=TRT_F_miles*1.60934, y=Recovery.Goal,color=Recovery.Designation)) +
-     geom_point(size=2)+
-    labs(x="Estimated Habitat Extent (km)",y="Recovery Goal") +
-    #scale_y_log10()+
-    #scale_x_log10()+
-    aes(ymin=100) +
-    theme_classic()
-  print(p)
-  ggsave("Recovery Goal vs Kilometers.pdf",
-         plot=p,
-         width = 4, height = 3, dpi = 300, limitsize = TRUE,
-         scale=1.75,
-         units = c("in")
-  )
-  
-  
-  
-  
-  ilogit<-function(x){exp(x)/(1+exp(x))}
-  hier_pF<-ilogit(rnorm(6400,jagsfit$BUGSoutput$sims.list$pF_mu,jagsfit$BUGSoutput$sims.list$pF_sd))
-  params<-data.frame(matrix(c(
-  quantile(jagsfit$BUGSoutput$sims.list$RpF_mu,c(0.025,0.25,0.5,0.75,0.975))
-  ,quantile(hier_pF,c(0.025,0.25,0.5,0.75,0.975))
-  ,quantile(jagsfit$BUGSoutput$sims.list$rho[,1],c(0.025,0.25,0.5,0.75,0.975))
-  ),nrow = 5,ncol=3)
-  )
-  
-  library(RColorBrewer)
-  cols<-brewer.pal(n=3,name = "Pastel1")
-  # par(mfrow=c(3,1),mar=c(2,10,2,5))
-  # boxplot(params[,1],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[1],ylim=c(0,1))
-  # axis(2,at=c(1:3),labels = c("Redds Per Female", "Redds per Female", "rho"),las=2)
-  # boxplot(params[,2],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[2],ylim=c(0,1))
-  # axis(2,at=c(1:3),labels = c("Proportion Female", "Redds per Female", "rho"),las=2)
-  # boxplot(params[,3],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[3],ylim=c(0,1))
-  # axis(2,at=c(1:3),labels = c("rho", "Redds per Female", "rho"),las=2)
-  
-  
-  # par(mfrow=c(3,1),mar=c(2,10,2,5))
-  # boxplot(params[,1],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[1],ylim=c(0,1))
-  # axis(2,at=c(1:3),labels = c("Redds Per Female", "Redds per Female", "rho"),las=2)
-  # matplot(apply(jagsfit$BUGSoutput$sims.list$pF,3L,c))
-  # axis(2,at=c(1:3),labels = c("Proportion Female", "Redds per Female", "rho"),las=2)
-  # boxplot(params[,3],outline=F,horizontal = T,boxwex = rep(0.5,3),las=1,yaxt="n", boxfill=cols[3],ylim=c(0,1))
-  # axis(2,at=c(1:3),labels = c("rho", "Redds per Female", "rho"),las=2)
-  
-  
-  indexes<-grep("pF\\[",colnames(jagsfit$BUGSoutput$sims.matrix))
-  df<-melt(jagsfit$BUGSoutput$sims.matrix[,indexes])
-  
-  hier_pF<-data.frame(hier_pF)
-  hier_pF$X2<-"hier_pF"
-  p<-ggplot(data = df, aes(x=value, group=X2)) + 
-    geom_density(alpha = 0.1,fill='black', linetype='blank') +
-    theme_bw()+
-    geom_density(data=hier_pF,aes(x=hier_pF),alpha = 1,linetype='solid',color=rgb(0.2,0.2,0.6,1),size=1.25)+
-    labs(x="Proportion of Females",y="Kernel Density") +
-    aes(xmin=0.25,xmax=0.75) 
-    print(p)
-  
-    p2<-ggplot(data = data.frame(jagsfit$BUGSoutput$sims.list$RpF_mu))+ 
-      geom_density(aes(x=jagsfit.BUGSoutput.sims.list.RpF_mu),alpha = 0.4,fill='black') +
-      theme_bw()+
-      #geom_density(data=hier_pF,aes(x=hier_pF),alpha = 1,linetype='solid',color=cols[1],size=1.25)+
-      labs(x="Redds per Female",y="Kernel Density")+
-      aes(xmin=0,xmax=1) 
-    print(p2)
-  
-  p3<-grid.arrange(p, p2, nrow = 1)
-  ggsave("RpF_pF.pdf",
-         plot=p3,
-         width = 6.5, height = 3, dpi = 300, limitsize = TRUE,
-         scale=1.75,
-         units = c("in")
-  )
-}
+ggsave(file.path(results.dir,subDir,"abundance_corr_plot.png"),
+       plot=p3,
+       width = 8, height = 8, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+
+Table2<-Adults
+
+
 ```
+
 
 
 # To-Do List
