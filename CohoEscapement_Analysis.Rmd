@@ -1148,9 +1148,6 @@ Results_Table1%<>%
     Population, Recovery.Goal,n,prop_abv_goal,med.NOR,range_NOR,med.NOR_Density,range_NOR_density,med.PHOS,range_pHOS,med.HOR,range_HOR
   )
     
-  
-
-
 write.csv(Results_Table1,file.path(results.dir,subDir,"Results_Table1.csv"),row.names = FALSE)
 ```
 
@@ -1220,14 +1217,14 @@ p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=
   #ylim(0.0,200) +
   # #scale_y_log10(breaks=c(0.001,0.01,0.1,1,10,100),labels=c(0.001,0.01,0.1,1,10,100),limits = c(.001,200),expand=c(0,0)) +
   # #scale_y_log10()+
-  scale_y_log10(limits = c(0.001, 180),
+  scale_y_log10(limits = c(0.001, 200),
                 labels = trans_format("log10", math_format(10^.x)),
                 breaks=trans_breaks("log10", function(x) 10^x, n=4)) +
   theme_bw() +
   theme(panel.grid.minor = element_line(color="grey80", linetype="solid"), panel.grid.major = element_line(color="grey80", linetype="solid")) +
   annotation_logticks(base = 10)+
   scale_x_continuous(breaks = seq(min(Density_results$Year), max(Density_results$Year), by = 4)) +
-  coord_cartesian(ylim = c(0.1,100))+ 
+  coord_cartesian(ylim = c(0.1,200))+ 
   theme_bw()+
   labs(x="Year",y="Spawners per Km")
 
