@@ -1209,6 +1209,13 @@ ggsave(file.path(results.dir,subDir,"pM.png"),
        units = c("in")
 )
 
+
+
+Bradford2000=tibble(
+  values = c(8.67, 42.22, 97.78),
+  `Bradford et al. (2000) N*` = c("min","mean","max")
+  )
+
 #density plot
 p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."),color=as.name("Origin"))) +
   geom_line(size=1)+
@@ -1224,6 +1231,7 @@ p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=
   theme(panel.grid.minor = element_line(color="grey80", linetype="solid"), panel.grid.major = element_line(color="grey80", linetype="solid")) +
   annotation_logticks(base = 10)+
   scale_x_continuous(breaks = seq(min(Density_results$Year), max(Density_results$Year), by = 4)) +
+  geom_hline(data=Bradford2000,mapping=aes(yintercept=values,linetype=`Bradford et al. (2000) N*`)) +
   coord_cartesian(ylim = c(0.1,200))+ 
   theme_bw()+
   labs(x="Year",y="Spawners per Km")
@@ -1332,7 +1340,7 @@ Abundance_corr_dat<-Abundance_results%>%
   
 corrplot<-Abundance_corr_dat%>%  
   cor()%>%
-  ggcorrplot(hc.order = TRUE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05, lab_size = 2)
+  ggcorrplot(hc.order = TRUE, type = "lower", outline.col = "white", p.mat = NULL, sig.level = 0.05, lab_size = 1.5)
 
 
 Abundance_corr<-Abundance_corr_dat%>%
@@ -1401,21 +1409,21 @@ panel_labels<-c(letters[1:4])
 
 p3<-grid.arrange(
   arrangeGrob(
-    corrplot,
+    pop_process_sd_plot,
     top = grid::textGrob(paste0("(",panel_labels[1],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
     ), 
   arrangeGrob(
-    corr_rank_plot,
+    ESU_process_var_prop_plot,
     top = grid::textGrob(paste0("(",panel_labels[2],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
-    ), 
+    ),
   arrangeGrob(
-    pop_process_sd_plot,
+    corrplot,
     top = grid::textGrob(paste0("(",panel_labels[3],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
     ), 
   arrangeGrob(
-    ESU_process_var_prop_plot,
+    corr_rank_plot,
     top = grid::textGrob(paste0("(",panel_labels[4],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
-    ),
+    ), 
   nrow = 2
 )
   
@@ -1427,7 +1435,124 @@ ggsave(file.path(results.dir,subDir,"abundance_corr_plot.png"),
 )
 
 
-Table2<-Adults
+trends<-res$eps_lambda%>%
+  reshape2::melt()%>%
+  setNames(c("iteration","GRTS_Population","Year","eps_lambda"))%>%
+  bind_rows(res$eps_lambda_all%>%
+              reshape2::melt()%>%
+              setNames(c("iteration","Year","eps_lambda"))%>%
+              mutate(GRTS_Population="WA LCR ESU")
+      
+  )%>%
+  mutate(Year=Year+min(years))%>%
+  arrange(GRTS_Population,iteration,Year)%>%
+  group_by(GRTS_Population,iteration)%>%
+  mutate(trend=cumsum(eps_lambda))%>%
+  group_by(GRTS_Population,Year)%>%
+  summarise(mean=mean(trend),
+            sd=sd(trend),
+            `2.5%` = quantile(trend,0.025),
+            `25%` = quantile(trend,0.25),
+            `50%` = quantile(trend,0.5),
+            `75%` = quantile(trend,0.75),
+            `97.5%` = quantile(trend,0.975)
+  )%>%
+  bind_rows(expand_grid(Year=years[1],GRTS_Population=c(GRTSpops$GRTS_Population, "WA LCR ESU"),mean=0,sd=0,`2.5%`=0,`25%`=0,`50%`=0,`75%`=0,`97.5%`=0))%>%
+  mutate(group=ifelse(GRTS_Population=="WA LCR ESU","WA LCR ESU","Sub-population"))
+
+
+ribbon_data <- trends %>%
+  filter(GRTS_Population == "WA LCR ESU")
+
+
+ESU_and_GRTS_Population_Plot<-ggplot(trends,aes(x=Year,y=`50%`,color=GRTS_Population,group)
+       )+
+  facet_wrap(~group,nrow=2)+
+  geom_ribbon(data=ribbon_data,aes(ymin=`2.5%`,ymax=`97.5%`,fill=GRTS_Population),alpha=0.5,color=NA)+
+  geom_ribbon(data=ribbon_data,aes(ymin=`25%`,ymax=`75%`,fill=GRTS_Population),alpha=0.5,color=NA)+
+  geom_line(aes(color=GRTS_Population))+
+  scale_x_continuous(breaks = seq(min(trends$Year), max(trends$Year), by = 2))+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(size = 14)
+        )+
+  ylab("Scaled log trend")+
+  geom_hline(yintercept = 0)
+
+
+ggsave(file.path(results.dir,subDir,"abundance_trend_plot.png"),
+       plot=ESU_and_GRTS_Population_Plot,
+       width = 6.5, height = 4, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
+
+ESU_Trend_Plot<-ggplot(trends%>%
+             filter(GRTS_Population=="WA LCR ESU")
+             ,aes(x=Year,y=`50%`,color=GRTS_Population,group)
+       )+
+  geom_ribbon(data=ribbon_data,aes(ymin=`2.5%`,ymax=`97.5%`,fill=GRTS_Population),alpha=0.5,color=NA)+
+  geom_ribbon(data=ribbon_data,aes(ymin=`25%`,ymax=`75%`,fill=GRTS_Population),alpha=0.5,color=NA)+
+  geom_line(aes(color=GRTS_Population))+
+  scale_x_continuous(breaks = seq(min(trends$Year), max(trends$Year), by = 2))+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(size = 14)
+        )+
+  ylab("Scaled log ESU-level trend")+
+  geom_hline(yintercept = 0)
+
+GRTS_Population_Trend_Plot<-ggplot(trends%>%
+             filter(GRTS_Population!="WA LCR ESU")
+             ,aes(x=Year,y=`50%`,color=GRTS_Population,group)
+       )+
+  geom_line(aes(color=GRTS_Population))+
+  scale_x_continuous(breaks = seq(min(trends$Year), max(trends$Year), by = 2))+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(size = 14)
+        )+
+  ylab("Scaled log Sub-population trends")+
+  geom_hline(yintercept = 0)
+
+
+
+panel_labels<-c(letters[1:6])
+
+p7<-grid.arrange(
+  arrangeGrob(
+    ESU_Trend_Plot,
+    top = grid::textGrob(paste0("(",panel_labels[1],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+   arrangeGrob(
+    GRTS_Population_Trend_Plot,
+    top = grid::textGrob(paste0("(",panel_labels[2],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+  arrangeGrob(
+    pop_process_sd_plot,
+    top = grid::textGrob(paste0("(",panel_labels[3],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+  arrangeGrob(
+    ESU_process_var_prop_plot,
+    top = grid::textGrob(paste0("(",panel_labels[4],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ),
+  arrangeGrob(
+    corrplot,
+    top = grid::textGrob(paste0("(",panel_labels[5],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+  arrangeGrob(
+    corr_rank_plot,
+    top = grid::textGrob(paste0("(",panel_labels[6],")"), x = 0.05, y = 0.95, just = c("left", "top"), gp = grid::gpar(fontsize = 16))
+    ), 
+  nrow = 3
+)
+  
+ggsave(file.path(results.dir,subDir,"abundance_corr_plot_6panel.png"),
+       plot=p7,
+       width = 6.5, height = 9, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+)
 
 
 ```
