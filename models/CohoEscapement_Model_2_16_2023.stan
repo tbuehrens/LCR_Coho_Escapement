@@ -241,7 +241,7 @@ generated quantities {
   }
 
   // Posterior Predictive for pF
-  int<lower=0, upper=1> F_rep[n_pf];
+  int<lower=0> F_rep[n_pf];
   for (i in 1:n_pf) {
     F_rep[i] = binomial_rng(AS[i], pF[yr_pf[i], pop_pf[i]]);
   }
