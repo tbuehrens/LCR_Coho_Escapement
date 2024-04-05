@@ -229,7 +229,7 @@ model{
   //CRC data
   for(t in 1:n_crc_years){
     for(p in 1:n_crc_pops){
-      catch_a_M_mu[t,p] ~ lognormal(log(M_ad[crc_years[t],crc_pops[p]] * HR_a_M[crc_years[t],p]/(1-HR_a_M[crc_years[t],p])) + square(catch_a_M_SD[t,p]), catch_a_M_SD[t,p]); 
+      catch_a_M_mu[t,p] ~ lognormal(log(M_ad[crc_years[t],crc_pops[p]] * HR_a_M[crc_years[t],p]/(1-HR_a_M[crc_years[t],p])) - square(catch_a_M_SD[t,p])/2, catch_a_M_SD[t,p]); 
     }
   }
 }
