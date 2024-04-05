@@ -102,7 +102,6 @@ WriteGRTSdata<-FALSE
 stan_model.file<-"CohoEscapement_Model_2_16_2023.stan"
 
 #model fitting
-fit_JAGS = FALSE
 fit_Stan = FALSE
 
 #HMC params (only applies to stan model; you need to manually tweak for JAGS in Jagsfit function)
@@ -112,7 +111,7 @@ burn=1000
 iter=4000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 
-results_name<-"Results_2023-06-26"
+results_name<-"Results_2024-04-05"
 ```
 
 # Load & Combine Data for Old JAGs Model
@@ -210,7 +209,6 @@ GRTSdat<-NULL
 IMWdat<-NULL
 THdat<-NULL
 for(i in 1:yrs){
-  print(years[i])
   #load GRTS data
   GRTSdat_filename<-paste0(csv.data.dir,"/GRTSdata_",GRTSdat.date,"/",years[i],"GRTSdat_",GRTSdat.date,".csv")
   GRTSdat<-data.frame(read.csv(GRTSdat_filename))
@@ -242,7 +240,6 @@ for(i in 1:yrs){
   GRTSdat<-GRTSdat[order(as.numeric(as.character(GRTSdat$Order))),]
   #CREATE dataframes for JAGS
   #GRTS
-  print(GRTSdat$sites)
   sites[,i]<-GRTSdat$sites
   Y2[,i]=GRTSdat$Y2
   Y[,i]=GRTSdat$Y
