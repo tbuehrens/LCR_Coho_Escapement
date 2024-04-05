@@ -293,7 +293,7 @@ generated quantities {
   real<lower=0> catch_a_M_mu_rep[n_crc_years, n_crc_pops];
   for (t in 1:n_crc_years) {
     for (p in 1:n_crc_pops) {
-      catch_a_M_mu_rep[t, p] = exp(normal_rng(log(M_ad[crc_years[t], crc_pops[p]] * HR_a_M[crc_years[t], p] / (1 - HR_a_M[crc_years[t], p])) + square(catch_a_M_SD[t, p]), catch_a_M_SD[t, p]));
+      catch_a_M_mu_rep[t, p] = exp(normal_rng(log(M_ad[crc_years[t], crc_pops[p]] * HR_a_M[crc_years[t], p] / (1 - HR_a_M[crc_years[t], p])) - square(catch_a_M_SD[t, p])/2, catch_a_M_SD[t, p]));
     }
   }
 }
