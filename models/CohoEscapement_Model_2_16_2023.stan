@@ -235,15 +235,15 @@ model{
 }
 generated quantities {
   // Posterior Predictive for pM
-  int<lower=0, upper=1> pM_rep[n_pm];
+  int<lower=0> H_rep[n_pm];
   for (i in 1:n_pm) {
-    pM_rep[i] = binomial_rng(MS[i], pM[yr_pm[i], pop_pm[i]]);
+    H_rep[i] = binomial_rng(MS[i], pM[yr_pm[i], pop_pm[i]]);
   }
 
   // Posterior Predictive for pF
-  int<lower=0, upper=1> pF_rep[n_pf];
+  int<lower=0, upper=1> F_rep[n_pf];
   for (i in 1:n_pf) {
-    pF_rep[i] = binomial_rng(AS[i], pF[yr_pf[i], pop_pf[i]]);
+    F_rep[i] = binomial_rng(AS[i], pF[yr_pf[i], pop_pf[i]]);
   }
 
   // Posterior Predictive for MR
