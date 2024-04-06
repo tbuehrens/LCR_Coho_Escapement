@@ -55,7 +55,8 @@ packages_list<-c(
   "janitor",
   "scales",
   "gridExtra",
-  "ggcorrplot"
+  "ggcorrplot",
+  "kableExtra"
 )
 install_or_load_pack(pack = packages_list)
 ```
@@ -849,6 +850,7 @@ if(fit_Stan == TRUE){
 
 # Posterior Predictive Checks
 ```{r}
+
 H_PPC<-as.data.frame(apply(rstan::extract(stanfit)$H_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
   rownames_to_column(var="Quantile")%>%
   as_tibble()%>%
@@ -872,24 +874,26 @@ H_PPC %>%
     total_count = fit_count + no_fit_count,
     bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
   ) %>%
-  ungroup()
+  dplyr::select(subpopulation,year, bayes_p)%>%
+  pivot_wider(names_from = year,values_from = bayes_p)%>%
+  ungroup()%>%
+  kbl()%>%
+  kable_classic(html_font = "Times New Roman")
 
-
-p<-ggplot(H_PPC, aes(x = H, y = H, color=subpopulation,group=year)) +
+H_PPC_plt<-ggplot(H_PPC, aes(x = H, y = H, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed H", y = "95% PPI") +
+  labs(x = substitute(italic(s)[H], list(H = "H")), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(H_PPC$`97.5%`)) +
-  xlim(0, max(H_PPC$`97.5%`))
+  xlim(0, max(H_PPC$`97.5%`)) +
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"H_PPC.png")),
-       plot = p,
+       plot = H_PPC_plt,
        width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
        scale=1.75,
        units = c("in")
        )
-
-
 
 F_PPC<-as.data.frame(apply(rstan::extract(stanfit)$F_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
   rownames_to_column(var="Quantile")%>%
@@ -914,15 +918,20 @@ F_PPC %>%
     total_count = fit_count + no_fit_count,
     bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
   ) %>%
-  ungroup()
+  pivot_wider(names_from = year,values_from = bayes_p)%>%
+  ungroup()%>%
+  kbl()%>%
+  kable_classic(html_font = "Times New Roman")
+
 
 
 p<-ggplot(F_PPC, aes(x = F, y = F, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed F", y = "95% PPI") +
+  labs(x = substitute(italic(s)[F], list(F = "F")), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(F_PPC$`97.5%`)) +
-  xlim(0, max(F_PPC$`97.5%`))
+  xlim(0, max(F_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"F_PPC.png")),
        plot = p,
@@ -960,10 +969,11 @@ n1_PPC %>%
 
 p<-ggplot(n1_PPC, aes(x = n1, y = n1, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed n1", y = "95% PPI") +
+  labs(x = substitute(italic(n1)), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(n1_PPC$`97.5%`)) +
-  xlim(0, max(n1_PPC$`97.5%`))
+  xlim(0, max(n1_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"n1_PPC.png")),
        plot = p,
@@ -1000,10 +1010,11 @@ m_PPC %>%
 
 p<-ggplot(m_PPC, aes(x = m, y = m, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed m", y = "95% PPI") +
+  labs(x =substitute(italic(m)), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(m_PPC$`97.5%`)) +
-  xlim(0, max(m_PPC$`97.5%`))
+  xlim(0, max(m_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"m_PPC.png")),
        plot = p,
@@ -1040,10 +1051,11 @@ Y2_PPC %>%
 
 p<-ggplot(Y2_PPC, aes(x = Y2, y = Y2, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed Y2", y = "95% PPI") +
+  labs(x = substitute(italic(r)[I], list(I = "I")), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(Y2_PPC$`97.5%`)) +
-  xlim(0, max(Y2_PPC$`97.5%`))
+  xlim(0, max(Y2_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"Y2_PPC.png")),
        plot = p,
@@ -1082,11 +1094,12 @@ Y_PPC %>%
 p <- ggplot(Y_PPC, aes(x = Y, y = Y, color=subpopulation, group=year)) +
   facet_grid(cols=vars(subpopulation), rows=vars(year), scales = "free") +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed Y", y = "95% PPI") +
+  labs(x = substitute(italic(r)), y = "95% PPI") +
   geom_line(color="black") +
   theme(#strip.text = element_blank(),  # Remove facet labels
         #strip.background = element_blank(),  # Remove facet background
-        legend.position = "none")  # Remove legend
+        legend.position = "none") +
+  theme(text = element_text(size = 12))
 
 
 ggsave(filename=here::here(file.path("results",results_name,"Y_PPC.png")),
@@ -1098,10 +1111,11 @@ ggsave(filename=here::here(file.path("results",results_name,"Y_PPC.png")),
 
 p <- ggplot(Y_PPC, aes(x = Y+1, y = Y+1, color=fit)) +
   geom_errorbar(aes(ymin = `2.5%`+1, ymax = `97.5%`+1), width = 0,position = position_jitter(width = 0.1, height=0)) +
-  labs(x = "Observed Y", y = "95% PPI") +
+  labs(x = substitute(italic(r)), y = "95% PPI") +
   geom_line(color="black") +
   scale_x_log10()+
-  scale_y_log10()
+  scale_y_log10()+
+  theme(text = element_text(size = 12))
   
 
 
@@ -1148,10 +1162,11 @@ TH_a_UM_PPC %>%
 
 p<-ggplot(TH_a_UM_PPC, aes(x = TH_a_UM, y = TH_a_UM, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed TH_a_UM", y = "95% PPI") +
+  labs(x =  substitute(italic(T)[W], list(W = "W")), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(TH_a_UM_PPC$`97.5%`)) +
-  xlim(0, max(TH_a_UM_PPC$`97.5%`))
+  xlim(0, max(TH_a_UM_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"TH_a_UM_PPC.png")),
        plot = p,
@@ -1196,10 +1211,11 @@ TH_a_M_PPC %>%
 
 p<-ggplot(TH_a_M_PPC, aes(x = TH_a_M, y = TH_a_M, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed TH_a_M", y = "95% PPI") +
+  labs(x =  substitute(italic(T)[H], list(H = "H")), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(TH_a_M_PPC$`97.5%`)) +
-  xlim(0, max(TH_a_M_PPC$`97.5%`))
+  xlim(0, max(TH_a_M_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"TH_a_M_PPC.png")),
        plot = p,
@@ -1244,10 +1260,11 @@ catch_a_M_mu_PPC %>%
 
 p<-ggplot(catch_a_M_mu_PPC, aes(x = catch_a_M_mu, y = catch_a_M_mu, color=subpopulation,group=year)) +
   geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
-  labs(x = "Observed catch_a_M_mu", y = "95% PPI") +
+  labs(x =  substitute(italic(c)), y = "95% PPI") +
   geom_line(color="black") +
   ylim(0, max(catch_a_M_mu_PPC$`97.5%`)) +
-  xlim(0, max(catch_a_M_mu_PPC$`97.5%`))
+  xlim(0, max(catch_a_M_mu_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
 
 ggsave(filename=here::here(file.path("results",results_name,"catch_a_M_mu_PPC.png")),
        plot = p,
