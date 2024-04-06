@@ -1,6 +1,6 @@
 data{
-  int T;
-  int P;
+  int T;//years
+  int P;//(sub)populations
   matrix[T,P] F_miles;
   matrix[T,P] GRTS_miles;
   matrix[T,P] missed_miles;
@@ -48,7 +48,7 @@ data{
   int n_crc_pops; //count of crc pops with at least one year of non-zero, non-NA data.
   int crc_pops[n_crc_pops]; //pop indexes for each crc pop 
   int crc_years[n_crc_years]; // year indexes for each crc likelihood (assumes available years have data for all pops)
-  matrix[n_crc_years,n_crc_pops] catch_a_M_mu; //crc MLEs
+  matrix[n_crc_years,n_crc_pops] catch_a_M_mu; //crc MOM estimates
   matrix[n_crc_years,n_crc_pops] catch_a_M_SD; //crc variances converted via moment matching to log-normal SD's
   //priors
   real<lower=0> cauchy_scale;
