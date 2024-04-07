@@ -72,6 +72,6 @@ knitr::include_graphics(here::here(file.path("results",results_name,"catch_a_M_m
 ```
 
 ```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc10 }
-knitr::include_graphics(here::here(file.path("results",results_name,"Y_PPC.png")))
+knitr::include_graphics(here::here(file.path("results",results_name,"Y_PPC_v3.png")))
 ```
 

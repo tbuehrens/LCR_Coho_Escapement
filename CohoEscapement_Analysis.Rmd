@@ -1110,18 +1110,19 @@ ggsave(filename=here::here(file.path("results",results_name,"Y_PPC.png")),
        units = c("in")
        )
 
-p <- ggplot(Y_PPC, aes(x = Y+1, y = Y+1)) +
-  geom_point(aes(y=mean))+
+p9 <- ggplot(Y_PPC, aes(x = Y + 1, y = Y + 1, color = fit)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0, position = position_jitter(width = 0.1, height = 0)) +
   labs(x = substitute(italic(r)), y = "95% PPI") +
-  geom_line(color="black") +
-  scale_x_log10()+
-  scale_y_log10()+
+  geom_line(color = "black") +
+  scale_x_log10() +
+  scale_y_log10() +
   theme(text = element_text(size = 12))
+
   
 
 
 ggsave(filename=here::here(file.path("results",results_name,"Y_PPC_v2.png")),
-       plot = p,
+       plot = p9,
        width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
        scale=1.75,
        units = c("in")
@@ -1288,7 +1289,7 @@ Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, mean))%>%
          year = as.factor(year)
          )
 
-p <- ggplot(Y_PPC, aes(x = Y + 1, y = Y+1)) +
+p10 <- ggplot(Y_PPC, aes(x = Y + 1, y = Y+1)) +
   geom_point(aes(x = jitter(Y + 1), y = mean + 1)) +
   labs(x = expression(paste(italic(r), " + 1 (GRTS Redds)")), y = expression(paste(italic(r)," + 1 (posterior mean)"))) +
   geom_line(color = "black") +
@@ -1297,13 +1298,13 @@ p <- ggplot(Y_PPC, aes(x = Y + 1, y = Y+1)) +
   theme(text = element_text(size = 12))
 
 ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v3.png")),
-       plot = p,
+       plot = p10,
        width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
        scale = 1.75,
        units = "in"
 )
 
-p <- ggplot(Y_PPC%>%
+p11 <- ggplot(Y_PPC%>%
               group_by(year,subpopulation)%>%
               summarise(mean=mean(mean),
                         mean_Y = mean(Y)
@@ -1316,9 +1317,18 @@ p <- ggplot(Y_PPC%>%
   scale_y_log10() +
   theme(text = element_text(size = 12))
 
+
 ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v4.png")),
-       plot = p,
+       plot = p11,
        width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale = 1.75,
+       units = "in"
+)
+
+
+ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v4.png")),
+       plot = grid.arrange(p9,p10,p11,ncol=1),
+       width = 3, height = 9,dpi = 300, limitsize = TRUE,
        scale = 1.75,
        units = "in"
 )
