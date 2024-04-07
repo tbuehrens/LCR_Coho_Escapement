@@ -1,0 +1,71 @@
+---
+title: "Supplementary Figures and Tables: Posterior Predictive Checks"
+date: "Updated: `r Sys.Date()`"
+output: word_document
+---
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE,}
+results_name<-"Results_2024-04-06"
+
+fc1 <- "Figure S1. Regression of observed vs. 95% posterior predictive interval () for hatchery origin spawner count $s_{H}$. Black lines are the 1:1 line. Lack of fit is indicated by PPI that do not overlap the black line."
+
+fc2 <- "Figure S2. Regression of observed vs. 95% posterior predictive interval for female spawner count $s_{F}$. Lack of fit is indicated by PPI that do not overlap the black line."
+
+fc3 <- "Figure S3. Regression of observed vs. 95% posterior predictive interval for recaptures $m$ used in mark recapture estimates of spawner abundance. Lack of fit is indicated by PPI that do not overlap the black line."
+
+fc4 <- "Figure S4. Regression of observed vs. 95% posterior predictive interval for for marks $n1$ used in mark recapture estimates of spawner abundance. Lack of fit is indicated by PPI that do not overlap the black line."
+
+fc5 <- "Figure S5. Regression of observed vs. 95% posterior predictive interval for index redd counts $r_{I}$. Lack of fit is indicated by PPI that do not overlap the black line."
+
+fc6 <- "Figure S6. Regression of observed vs. posterior predictive distribution of GRTS redd counts $r$. Both x and y axes are log10 transformed and a constant of 1 was added to observations and predictions to aid visualization. A 1:1 line is shown in black. Top panel: x values are jittered observations (redd count in an individual subpopulation, year, and reach) and y are 95% PPI. Coloring depicts observations within and outside of the 95% PPI. Middle Panel: x values are jittered observations (redd count in an individual subpopulation, year, and reach) and y are the mean of the posterior predictive distribution. Bottom Panel: x values are the mean of redd counts across all reaches in an individual subpopulation and year and y are mean across reaches of the posterior predictive means redd total bu subpopulation and year. Overall, 2786 out of 2828 observations (98.5%) were within the 95% PPI. When this calculation is performed separately for each year and subpopulation, 181 of 207 year-by-subpopulation combinations had >=95% of observations within the 95% PPI. The remainder had less, and of these the lowest coverage was 75% of year and subpopulation specific reach level redd observations were within the 95%PPI. Although the top panel shows good PPI interval coverage, it appears to show lack of correspondence between the observed and expected. This is a natural effect of a shrinkage estimator (multivariate state space process model) applied to a high noise low mean count process. The middle plot shows that at the observation level, the posterior means were associated with the observations. The bottom panel shows that at the subpopulation and year level, the mean of the observations and the mean of the predictions were not different from 1:1. This suggests that any appearance of lack of association in the top panel was not pathological, but merely the model attempting to extract mean redd densities from very noisy low mean count data."
+
+fc7 <- "Figure S7. Regression of observed vs. 95% posterior predictive interval for the trap and haul census wild adult coho salmon  count $T_{W}$. Lack of fit is indicated by PPI that do not overlap the black line."
+
+fc8 <- "Figure S8. Regression of observed vs. 95% posterior predictive interval for the trap and haul census hatchery adult coho salmon  count $T_{H}$. Lack of fit is indicated by PPI that do not overlap the black line."
+
+fc9 <- "Figure S9. Regression of observed vs. 95% posterior predictive interval for the catch record card point estimate of hatchery adult coho salmon catch $c$ used in to estimate exploitation rates occuring upstream of dams after the release of trap-and-haul adults. Lack of fit is indicated by PPI that do not overlap the black line."
+
+```
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc1 }
+knitr::include_graphics(here::here(file.path("results",results_name,"H_PPC.png")))
+```
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc2 }
+knitr::include_graphics(here::here(file.path("results",results_name,"F_PPC.png")))
+```
+
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc3 }
+knitr::include_graphics(here::here(file.path("results",results_name,"m_PPC.png")))
+```
+
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc4 }
+knitr::include_graphics(here::here(file.path("results",results_name,"n1_PPC.png")))
+```
+
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc5 }
+knitr::include_graphics(here::here(file.path("results",results_name,"Y2_PPC.png")))
+```
+
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc6 }
+knitr::include_graphics(here::here(file.path("results",results_name,"Y_PPC_v4.png")))
+```
+
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc7 }
+knitr::include_graphics(here::here(file.path("results",results_name,"TH_a_UM_PPC.png")))
+```
+
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc8 }
+knitr::include_graphics(here::here(file.path("results",results_name,"TH_a_M_PPC.png")))
+```
+
+
+```{r, message=FALSE, echo=FALSE, results='asis', warning=FALSE, fig.show='asis', fig.cap=fc9 }
+knitr::include_graphics(here::here(file.path("results",results_name,"catch_a_M_mu_PPC.png")))
+```
