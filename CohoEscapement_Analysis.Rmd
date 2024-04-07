@@ -55,7 +55,8 @@ packages_list<-c(
   "janitor",
   "scales",
   "gridExtra",
-  "ggcorrplot"
+  "ggcorrplot",
+  "kableExtra"
 )
 install_or_load_pack(pack = packages_list)
 ```
@@ -102,7 +103,6 @@ WriteGRTSdata<-FALSE
 stan_model.file<-"CohoEscapement_Model_2_16_2023.stan"
 
 #model fitting
-fit_JAGS = FALSE
 fit_Stan = FALSE
 
 #HMC params (only applies to stan model; you need to manually tweak for JAGS in Jagsfit function)
@@ -112,7 +112,7 @@ burn=1000
 iter=4000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 
-results_name<-"Results_2023-06-26"
+results_name<-"Results_2024-04-06"
 ```
 
 # Load & Combine Data for Old JAGs Model
@@ -210,7 +210,6 @@ GRTSdat<-NULL
 IMWdat<-NULL
 THdat<-NULL
 for(i in 1:yrs){
-  print(years[i])
   #load GRTS data
   GRTSdat_filename<-paste0(csv.data.dir,"/GRTSdata_",GRTSdat.date,"/",years[i],"GRTSdat_",GRTSdat.date,".csv")
   GRTSdat<-data.frame(read.csv(GRTSdat_filename))
@@ -242,7 +241,6 @@ for(i in 1:yrs){
   GRTSdat<-GRTSdat[order(as.numeric(as.character(GRTSdat$Order))),]
   #CREATE dataframes for JAGS
   #GRTS
-  print(GRTSdat$sites)
   sites[,i]<-GRTSdat$sites
   Y2[,i]=GRTSdat$Y2
   Y[,i]=GRTSdat$Y
@@ -833,6 +831,7 @@ if(fit_Stan == TRUE){
                     ,warmup= burn
                     ,thin = thin
                     ,control=control
+                    ,init="0"
                     #,verbose=F
                     #,open_progress=F
                     #,show_messages=F
@@ -848,6 +847,497 @@ if(fit_Stan == TRUE){
   res<-rstan::extract(stanfit)
 }
 ```
+
+
+# Posterior Predictive Checks
+```{r}
+
+H_PPC<-as.data.frame(apply(rstan::extract(stanfit)$H_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
+  rownames_to_column(var="Quantile")%>%
+  as_tibble()%>%
+  pivot_longer(names_to = "names",values_to = "H",cols = c(-Quantile))%>%
+  pivot_wider(names_from = Quantile,values_from = H)%>%
+  bind_cols(tibble(H=standat$H,
+                   subpopulation=standat$pop_pm,
+                   year = standat$yr_pm,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(H>=`2.5%` & H<=`97.5%`,"fit","no fit"))
+         )
+
+H_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  dplyr::select(subpopulation,year, bayes_p)%>%
+  pivot_wider(names_from = year,values_from = bayes_p)%>%
+  ungroup()%>%
+  kbl()%>%
+  kable_classic(html_font = "Times New Roman")
+
+H_PPC_plt<-ggplot(H_PPC, aes(x = H, y = H, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x = substitute(italic(s)[H], list(H = "H")), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(H_PPC$`97.5%`)) +
+  xlim(0, max(H_PPC$`97.5%`)) +
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"H_PPC.png")),
+       plot = H_PPC_plt,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+F_PPC<-as.data.frame(apply(rstan::extract(stanfit)$F_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
+  rownames_to_column(var="Quantile")%>%
+  as_tibble()%>%
+  pivot_longer(names_to = "names",values_to = "F",cols = c(-Quantile))%>%
+  pivot_wider(names_from = Quantile,values_from = F)%>%
+  bind_cols(tibble(F=standat$F,
+                   subpopulation=standat$pop_pf,
+                   year = standat$yr_pf,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(F>=`2.5%` & F<=`97.5%`,"fit","no fit"))
+         )
+
+F_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  pivot_wider(names_from = year,values_from = bayes_p)%>%
+  ungroup()%>%
+  kbl()%>%
+  kable_classic(html_font = "Times New Roman")
+
+
+
+p<-ggplot(F_PPC, aes(x = F, y = F, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x = substitute(italic(s)[F], list(F = "F")), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(F_PPC$`97.5%`)) +
+  xlim(0, max(F_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"F_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+
+n1_PPC<-as.data.frame(apply(rstan::extract(stanfit)$n1_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
+  rownames_to_column(var="Quantile")%>%
+  as_tibble()%>%
+  pivot_longer(names_to = "names",values_to = "n1",cols = c(-Quantile))%>%
+  pivot_wider(names_from = Quantile,values_from = n1)%>%
+  bind_cols(tibble(n1=standat$n1,
+                   subpopulation=standat$pop_mr,
+                   year = standat$yr_mr,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(n1>=`2.5%` & n1<=`97.5%`,"fit","no fit"))
+         )
+
+n1_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
+
+
+p<-ggplot(n1_PPC, aes(x = n1, y = n1, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x = substitute(italic(n1)), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(n1_PPC$`97.5%`)) +
+  xlim(0, max(n1_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"n1_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+m_PPC<-as.data.frame(apply(rstan::extract(stanfit)$m_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
+  rownames_to_column(var="Quantile")%>%
+  as_tibble()%>%
+  pivot_longer(names_to = "names",values_to = "m",cols = c(-Quantile))%>%
+  pivot_wider(names_from = Quantile,values_from = m)%>%
+  bind_cols(tibble(m=standat$m,
+                   subpopulation=standat$pop_mr,
+                   year = standat$yr_mr,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(m>=`2.5%` & m<=`97.5%`,"fit","no fit"))
+         )
+
+m_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
+
+
+p<-ggplot(m_PPC, aes(x = m, y = m, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x =substitute(italic(m)), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(m_PPC$`97.5%`)) +
+  xlim(0, max(m_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"m_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+Y2_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y2_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
+  rownames_to_column(var="Quantile")%>%
+  as_tibble()%>%
+  pivot_longer(names_to = "names",values_to = "Y2",cols = c(-Quantile))%>%
+  pivot_wider(names_from = Quantile,values_from = Y2)%>%
+  bind_cols(tibble(Y2=standat$Y2,
+                   subpopulation=standat$pop_Y2,
+                   year = standat$yr_Y2,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(Y2>=`2.5%` & Y2<=`97.5%`,"fit","no fit"))
+         )
+
+Y2_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
+
+
+p<-ggplot(Y2_PPC, aes(x = Y2, y = Y2, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x = substitute(italic(r)[I], list(I = "I")), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(Y2_PPC$`97.5%`)) +
+  xlim(0, max(Y2_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"Y2_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+
+Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, function(x) quantile(x,c(0.025,0.975))))%>%
+  rownames_to_column(var="Quantile")%>%
+  as_tibble()%>%
+  pivot_longer(names_to = "names",values_to = "Y",cols = c(-Quantile))%>%
+  pivot_wider(names_from = Quantile,values_from = Y)%>%
+  bind_cols(tibble(Y=standat$Y,
+                   subpopulation=standat$pop_Y,
+                   year = standat$yr_Y,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(Y>=`2.5%` & Y<=`97.5%`,"fit","no fit"))
+         )
+
+Y_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
+
+
+p <- ggplot(Y_PPC, aes(x = Y, y = Y, color=subpopulation,group=year)) +
+  facet_grid(rows=vars(subpopulation), cols=vars(year), scales = "free") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x = substitute(italic(r)), y = "95% PPI") +
+  geom_line(color="black") +
+  theme(#strip.text = element_blank(),  # Remove facet labels
+        #strip.background = element_blank(),  # Remove facet background
+        legend.position = "none") +
+  theme(text = element_text(size = 12))
+
+
+ggsave(filename=here::here(file.path("results",results_name,"Y_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+p9 <- ggplot(Y_PPC, aes(x = Y + 1, y = Y + 1, color = fit)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0, position = position_jitter(width = 0.1, height = 0)) +
+  labs(x = substitute(italic(r)), y = "95% PPI") +
+  geom_line(color = "black") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme(text = element_text(size = 12))
+
+  
+
+
+ggsave(filename=here::here(file.path("results",results_name,"Y_PPC_v2.png")),
+       plot = p9,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+
+TH_a_UM_PPC<-array(apply(rstan::extract(stanfit)$TH_a_UM_rep,2:3, function(x) quantile(x, c(0.025,0.975))), dim=c(2,nrow(standat$TH_a_UM),ncol(standat$TH_a_UM)))
+dimnames(TH_a_UM_PPC)[[3]] = colnames(standat$TH_a_UM)
+dimnames(TH_a_UM_PPC)[[2]] = rownames(standat$TH_a_UM)
+dimnames(TH_a_UM_PPC)[[1]] = c("2.5%","97.5%")
+
+TH_a_UM_PPC<-TH_a_UM_PPC%>%
+  reshape2::melt()%>%
+  as_tibble()%>%
+  set_names(c("Quantile","year","subpopulation","TH_a_UM"))%>%
+  pivot_wider(names_from = Quantile,values_from = TH_a_UM)%>%
+  mutate(year=factor(year))%>%
+  left_join(tibble(as.data.frame(standat$TH_a_UM)%>%
+                     rownames_to_column(var="year")%>%
+                     pivot_longer(cols=-year,values_to = "TH_a_UM",names_to = "subpopulation")
+                   ),
+            by=join_by(year,subpopulation)
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(TH_a_UM>=`2.5%` & TH_a_UM<=`97.5%`,"fit","no fit"))
+         )
+
+TH_a_UM_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
+
+
+p<-ggplot(TH_a_UM_PPC, aes(x = TH_a_UM, y = TH_a_UM, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x =  substitute(italic(T)[W], list(W = "W")), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(TH_a_UM_PPC$`97.5%`)) +
+  xlim(0, max(TH_a_UM_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"TH_a_UM_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+
+TH_a_M_PPC<-array(apply(rstan::extract(stanfit)$TH_a_M_rep,2:3, function(x) quantile(x, c(0.025,0.975))), dim=c(2,nrow(standat$TH_a_M),ncol(standat$TH_a_M)))
+dimnames(TH_a_M_PPC)[[3]] = colnames(standat$TH_a_M)
+dimnames(TH_a_M_PPC)[[2]] = rownames(standat$TH_a_M)
+dimnames(TH_a_M_PPC)[[1]] = c("2.5%","97.5%")
+
+TH_a_M_PPC<-TH_a_M_PPC%>%
+  reshape2::melt()%>%
+  as_tibble()%>%
+  set_names(c("Quantile","year","subpopulation","TH_a_M"))%>%
+  pivot_wider(names_from = Quantile,values_from = TH_a_M)%>%
+  mutate(year=factor(year))%>%
+  left_join(tibble(as.data.frame(standat$TH_a_M)%>%
+                     rownames_to_column(var="year")%>%
+                     pivot_longer(cols=-year,values_to = "TH_a_M",names_to = "subpopulation")
+                   ),
+            by=join_by(year,subpopulation)
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(TH_a_M>=`2.5%` & TH_a_M<=`97.5%`,"fit","no fit"))
+         )
+
+TH_a_M_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
+
+
+p<-ggplot(TH_a_M_PPC, aes(x = TH_a_M, y = TH_a_M, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x =  substitute(italic(T)[H], list(H = "H")), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(TH_a_M_PPC$`97.5%`)) +
+  xlim(0, max(TH_a_M_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"TH_a_M_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+
+catch_a_M_mu_PPC<-array(apply(rstan::extract(stanfit)$catch_a_M_mu_rep,2:3, function(x) quantile(x, c(0.025,0.975))), dim=c(2,nrow(standat$catch_a_M_mu),ncol(standat$catch_a_M_mu)))
+dimnames(catch_a_M_mu_PPC)[[3]] = colnames(standat$catch_a_M_mu)
+dimnames(catch_a_M_mu_PPC)[[2]] = rownames(standat$catch_a_M_mu)
+dimnames(catch_a_M_mu_PPC)[[1]] = c("2.5%","97.5%")
+
+catch_a_M_mu_PPC<-catch_a_M_mu_PPC%>%
+  reshape2::melt()%>%
+  as_tibble()%>%
+  set_names(c("Quantile","year","subpopulation","catch_a_M_mu"))%>%
+  pivot_wider(names_from = Quantile,values_from = catch_a_M_mu)%>%
+  mutate(year=factor(year),subpopulation=factor(subpopulation))%>%
+  left_join(tibble(as.data.frame(standat$catch_a_M_mu)%>%
+                     rownames_to_column(var="year")%>%
+                     pivot_longer(cols=-year,values_to = "catch_a_M_mu",names_to = "subpopulation")
+                   ),
+            by=join_by(year,subpopulation)
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year),
+         fit = factor(ifelse(catch_a_M_mu>=`2.5%` & catch_a_M_mu<=`97.5%`,"fit","no fit"))
+         )
+
+catch_a_M_mu_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
+
+
+p<-ggplot(catch_a_M_mu_PPC, aes(x = catch_a_M_mu, y = catch_a_M_mu, color=subpopulation,group=year)) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+  labs(x =  substitute(italic(c)), y = "95% PPI") +
+  geom_line(color="black") +
+  ylim(0, max(catch_a_M_mu_PPC$`97.5%`)) +
+  xlim(0, max(catch_a_M_mu_PPC$`97.5%`))+
+  theme(text = element_text(size = 12))
+
+ggsave(filename=here::here(file.path("results",results_name,"catch_a_M_mu_PPC.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
+
+
+Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, mean))%>%
+  as_tibble()%>%
+  setNames("mean")%>%
+  bind_cols(tibble(Y=standat$Y,
+                   subpopulation=standat$pop_Y,
+                   year = standat$yr_Y,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year)
+         )
+
+p10 <- ggplot(Y_PPC, aes(x = Y + 1, y = Y+1)) +
+  geom_point(aes(x = jitter(Y + 1), y = mean + 1)) +
+  labs(x = expression(paste(italic(r), " + 1 (GRTS Redds)")), y = expression(paste(italic(r)," + 1 (posterior mean)"))) +
+  geom_line(color = "black") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme(text = element_text(size = 12))
+
+ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v3.png")),
+       plot = p10,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale = 1.75,
+       units = "in"
+)
+
+p11 <- ggplot(Y_PPC%>%
+              group_by(year,subpopulation)%>%
+              summarise(mean=mean(mean),
+                        mean_Y = mean(Y)
+                        )
+              , aes(x = mean_Y + 1, y = mean_Y+1)) +
+  geom_point(aes(x = jitter(mean_Y + 1), y = mean)) +
+  labs(x = expression(paste(italic(r), " + 1 (GRTS Redds) mean by subpopulation and year")), y = expression(paste(italic(r)," + 1 (mean of posterior means by subpopulation and year)"))) +
+  geom_line(color = "black") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme(text = element_text(size = 12))
+
+
+ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v4.png")),
+       plot = p11,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale = 1.75,
+       units = "in"
+)
+
+
+ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v4.png")),
+       plot = grid.arrange(p9,p10,p11,ncol=1),
+       width = 3, height = 9,dpi = 300, limitsize = TRUE,
+       scale = 1.75,
+       units = "in"
+)
+
+
+
+
+```
+
 
 
 # Summarize GRTS and TRT Results 
