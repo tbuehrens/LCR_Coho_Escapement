@@ -1,6 +1,6 @@
 data{
-  int T;
-  int P;
+  int T;//years
+  int P;//(sub)populations
   matrix[T,P] F_miles;
   matrix[T,P] GRTS_miles;
   matrix[T,P] missed_miles;
@@ -48,7 +48,7 @@ data{
   int n_crc_pops; //count of crc pops with at least one year of non-zero, non-NA data.
   int crc_pops[n_crc_pops]; //pop indexes for each crc pop 
   int crc_years[n_crc_years]; // year indexes for each crc likelihood (assumes available years have data for all pops)
-  matrix[n_crc_years,n_crc_pops] catch_a_M_mu; //crc MLEs
+  matrix[n_crc_years,n_crc_pops] catch_a_M_mu; //crc MOM estimates
   matrix[n_crc_years,n_crc_pops] catch_a_M_SD; //crc variances converted via moment matching to log-normal SD's
   //priors
   real<lower=0> cauchy_scale;
@@ -233,3 +233,68 @@ model{
     }
   }
 }
+generated quantities {
+  // Posterior Predictive for pM
+  int<lower=0> H_rep[n_pm];
+  for (i in 1:n_pm) {
+    H_rep[i] = binomial_rng(MS[i], pM[yr_pm[i], pop_pm[i]]);
+  }
+
+  // Posterior Predictive for pF
+  int<lower=0> F_rep[n_pf];
+  for (i in 1:n_pf) {
+    F_rep[i] = binomial_rng(AS[i], pF[yr_pf[i], pop_pf[i]]);
+  }
+
+  // Posterior Predictive for MR
+  int<lower=0> n1_rep[n_mr];
+  int<lower=0> m_rep[n_mr];
+  for (i in 1:n_mr) {
+    n1_rep[i] = poisson_rng(Adults[yr_mr[i], pop_mr[i]] * p_MR[i]);
+    m_rep[i] = binomial_rng(n2[i], p_MR[i]);
+  }
+
+  // Posterior Predictive for Y2
+  int<lower=0> Y2_rep[n_Y2];
+  for (i in 1:n_Y2) {
+    Y2_rep[i] = poisson_rng(Redds[yr_Y2[i], pop_Y2[i]] * p_Index[yr_Y2[i], pop_Y2[i]]);
+  }
+
+  // Posterior Predictive for Y
+  real mu_local_rep[n_Y];
+  int<lower=0> Y_rep[n_Y];
+  for (i in 1:n_Y) {
+    mu_local_rep[i] = (Redds[yr_Y[i], pop_Y[i]] * (1 - p_Index[yr_Y[i], pop_Y[i]])) / (GRTS_miles[yr_Y[i], pop_Y[i]] + missed_miles[yr_Y[i], pop_Y[i]]);
+    Y_rep[i] = neg_binomial_2_rng(mu_local_rep[i] * g[i], 1 / square(sigma_disp[pop_Y[i]]));
+  }
+
+  // Posterior Predictive for Trap and Haul Data
+  int<lower=0> TH_a_M_rep[T, n_TH_pops];
+  int<lower=0> TH_a_UM_rep[T, n_TH_pops];
+  for (t in 1:T) {
+    for (p in 1:n_TH_pops) {
+      int match_crc_TH_rep = 0;
+      for (k in 1:n_crc_pops) {
+        if (TH_pops[p] == crc_pops[k]) {
+          match_crc_TH_rep += k;
+        }
+      }
+      if (match_crc_TH_rep > 0) {
+        TH_a_M_rep[t, p] = poisson_rng(M_ad[t, TH_pops[p]] / (1 - HR_a_M[t, match_crc_TH_rep]));
+        TH_a_UM_rep[t, p] = poisson_rng(UM_ad[t, TH_pops[p]] / (1 - HR_a_M[t, match_crc_TH_rep] * 0.1));
+      } else {
+        TH_a_M_rep[t, p] = poisson_rng(M_ad[t, TH_pops[p]]);
+        TH_a_UM_rep[t, p] = poisson_rng(UM_ad[t, TH_pops[p]]);
+      }
+    }
+  }
+
+  // Posterior Predictive for CRC data
+  real<lower=0> catch_a_M_mu_rep[n_crc_years, n_crc_pops];
+  for (t in 1:n_crc_years) {
+    for (p in 1:n_crc_pops) {
+      catch_a_M_mu_rep[t, p] = exp(normal_rng(log(M_ad[crc_years[t], crc_pops[p]] * HR_a_M[crc_years[t], p] / (1 - HR_a_M[crc_years[t], p])) - square(catch_a_M_SD[t, p])/2, catch_a_M_SD[t, p]));
+    }
+  }
+}
+
