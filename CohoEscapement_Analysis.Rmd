@@ -1066,37 +1066,35 @@ ggsave(filename=here::here(file.path("results",results_name,"Y2_PPC.png")),
        )
 
 
-Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, mean))%>%
-  # rownames_to_column(var="Quantile")%>%
+Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, function(x) quantile(x,c(0.025,0.975))))%>%
+  rownames_to_column(var="Quantile")%>%
   as_tibble()%>%
-  setNames("mean")%>%
-  # pivot_longer(names_to = "names",values_to = "Y",cols = c(-Quantile))%>%
-  # pivot_wider(names_from = Quantile,values_from = Y)%>%
+  pivot_longer(names_to = "names",values_to = "Y",cols = c(-Quantile))%>%
+  pivot_wider(names_from = Quantile,values_from = Y)%>%
   bind_cols(tibble(Y=standat$Y,
                    subpopulation=standat$pop_Y,
                    year = standat$yr_Y,
                    )
   )%>%
   mutate(subpopulation = as.factor(subpopulation),
-         year = as.factor(year)
-         #fit = factor(ifelse(Y>=`2.5%` & Y<=`97.5%`,"fit","no fit"))
+         year = as.factor(year),
+         fit = factor(ifelse(Y>=`2.5%` & Y<=`97.5%`,"fit","no fit"))
          )
 
-# Y_PPC %>%
-#   group_by(subpopulation,year) %>%
-#   summarise(
-#     fit_count = sum(fit == "fit"),
-#     no_fit_count = sum(fit == "no fit"),
-#     total_count = fit_count + no_fit_count,
-#     bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
-#   ) %>%
-#   ungroup()
+Y_PPC %>%
+  group_by(subpopulation,year) %>%
+  summarise(
+    fit_count = sum(fit == "fit"),
+    no_fit_count = sum(fit == "no fit"),
+    total_count = fit_count + no_fit_count,
+    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+  ) %>%
+  ungroup()
 
 
-p <- ggplot(Y_PPC, aes(x = Y, y = Y, color=subpopulation)) +
-  facet_grid(rows=vars(subpopulation), scales = "free") +
-  geom_point(aes(y=mean))+
-  #geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+p <- ggplot(Y_PPC, aes(x = Y, y = Y, color=subpopulation,group=year)) +
+  facet_grid(rows=vars(subpopulation), cols=vars(year), scales = "free") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
   labs(x = substitute(italic(r)), y = "95% PPI") +
   geom_line(color="black") +
   theme(#strip.text = element_blank(),  # Remove facet labels
