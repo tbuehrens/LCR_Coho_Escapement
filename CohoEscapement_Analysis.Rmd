@@ -831,6 +831,7 @@ if(fit_Stan == TRUE){
                     ,warmup= burn
                     ,thin = thin
                     ,control=control
+                    ,init="0"
                     #,verbose=F
                     #,open_progress=F
                     #,show_messages=F
