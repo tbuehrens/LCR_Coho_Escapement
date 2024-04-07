@@ -1066,35 +1066,37 @@ ggsave(filename=here::here(file.path("results",results_name,"Y2_PPC.png")),
        )
 
 
-Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, function(x) quantile(x, c(0.025,0.975))))%>%
-  rownames_to_column(var="Quantile")%>%
+Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, mean))%>%
+  # rownames_to_column(var="Quantile")%>%
   as_tibble()%>%
-  pivot_longer(names_to = "names",values_to = "Y",cols = c(-Quantile))%>%
-  pivot_wider(names_from = Quantile,values_from = Y)%>%
+  setNames("mean")%>%
+  # pivot_longer(names_to = "names",values_to = "Y",cols = c(-Quantile))%>%
+  # pivot_wider(names_from = Quantile,values_from = Y)%>%
   bind_cols(tibble(Y=standat$Y,
                    subpopulation=standat$pop_Y,
                    year = standat$yr_Y,
                    )
   )%>%
   mutate(subpopulation = as.factor(subpopulation),
-         year = as.factor(year),
-         fit = factor(ifelse(Y>=`2.5%` & Y<=`97.5%`,"fit","no fit"))
+         year = as.factor(year)
+         #fit = factor(ifelse(Y>=`2.5%` & Y<=`97.5%`,"fit","no fit"))
          )
 
-Y_PPC %>%
-  group_by(subpopulation,year) %>%
-  summarise(
-    fit_count = sum(fit == "fit"),
-    no_fit_count = sum(fit == "no fit"),
-    total_count = fit_count + no_fit_count,
-    bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
-  ) %>%
-  ungroup()
+# Y_PPC %>%
+#   group_by(subpopulation,year) %>%
+#   summarise(
+#     fit_count = sum(fit == "fit"),
+#     no_fit_count = sum(fit == "no fit"),
+#     total_count = fit_count + no_fit_count,
+#     bayes_p = ifelse(no_fit_count == 0, 1, fit_count / total_count)
+#   ) %>%
+#   ungroup()
 
 
-p <- ggplot(Y_PPC, aes(x = Y, y = Y, color=subpopulation, group=year)) +
-  facet_grid(cols=vars(subpopulation), rows=vars(year), scales = "free") +
-  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
+p <- ggplot(Y_PPC, aes(x = Y, y = Y, color=subpopulation)) +
+  facet_grid(rows=vars(subpopulation), scales = "free") +
+  geom_point(aes(y=mean))+
+  #geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), width = 0) +
   labs(x = substitute(italic(r)), y = "95% PPI") +
   geom_line(color="black") +
   theme(#strip.text = element_blank(),  # Remove facet labels
@@ -1110,8 +1112,8 @@ ggsave(filename=here::here(file.path("results",results_name,"Y_PPC.png")),
        units = c("in")
        )
 
-p <- ggplot(Y_PPC, aes(x = Y+1, y = Y+1, color=fit)) +
-  geom_errorbar(aes(ymin = `2.5%`+1, ymax = `97.5%`+1), width = 0,position = position_jitter(width = 0.1, height=0)) +
+p <- ggplot(Y_PPC, aes(x = Y+1, y = Y+1)) +
+  geom_point(aes(y=mean))+
   labs(x = substitute(italic(r)), y = "95% PPI") +
   geom_line(color="black") +
   scale_x_log10()+
@@ -1273,6 +1275,40 @@ ggsave(filename=here::here(file.path("results",results_name,"catch_a_M_mu_PPC.pn
        scale=1.75,
        units = c("in")
        )
+
+
+
+Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, mean))%>%
+  as_tibble()%>%
+  setNames("mean")%>%
+  bind_cols(tibble(Y=standat$Y,
+                   subpopulation=standat$pop_Y,
+                   year = standat$yr_Y,
+                   )
+  )%>%
+  mutate(subpopulation = as.factor(subpopulation),
+         year = as.factor(year)
+         )
+
+
+
+p <- ggplot(Y_PPC, aes(x = Y+1, y = Y+1)) +
+  geom_point(aes(y=mean))+
+  labs(x = substitute(italic(r)), y = "95% PPI") +
+  geom_line(color="black") +
+  scale_x_log10()+
+  scale_y_log10()+
+  theme(text = element_text(size = 12))
+  
+
+
+ggsave(filename=here::here(file.path("results",results_name,"Y_PPC_v3.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale=1.75,
+       units = c("in")
+       )
+
 
 ```
 
