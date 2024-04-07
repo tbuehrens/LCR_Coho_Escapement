@@ -1288,22 +1288,42 @@ Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, mean))%>%
          year = as.factor(year)
          )
 
-p <- ggplot(Y_PPC, aes(x = Y+1, y = Y+1)) +
-  geom_point(aes(x = jitter(Y+1),y=mean))+
-  labs(x = substitute(italic(r)), y = "Posterior Mean GRTS Redds") +
-  geom_line(color="black") +
-  scale_x_log10()+
-  scale_y_log10()+
+p <- ggplot(Y_PPC, aes(x = Y + 1, y = Y+1)) +
+  geom_point(aes(x = jitter(Y + 1), y = mean + 1)) +
+  labs(x = expression(paste(italic(r), " + 1 (GRTS Redds)")), y = expression(paste(italic(r)," + 1 (posterior mean)"))) +
+  geom_line(color = "black") +
+  scale_x_log10() +
+  scale_y_log10() +
   theme(text = element_text(size = 12))
-  
 
-
-ggsave(filename=here::here(file.path("results",results_name,"Y_PPC_v3.png")),
+ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v3.png")),
        plot = p,
        width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
-       scale=1.75,
-       units = c("in")
-       )
+       scale = 1.75,
+       units = "in"
+)
+
+p <- ggplot(Y_PPC%>%
+              group_by(year,subpopulation)%>%
+              summarise(mean=mean(mean),
+                        mean_Y = mean(Y)
+                        )
+              , aes(x = mean_Y + 1, y = mean_Y+1)) +
+  geom_point(aes(x = jitter(mean_Y + 1), y = mean)) +
+  labs(x = expression(paste(italic(r), " + 1 (GRTS Redds) mean by subpopulation and year")), y = expression(paste(italic(r)," + 1 (mean of posterior means by subpopulation and year)"))) +
+  geom_line(color = "black") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme(text = element_text(size = 12))
+
+ggsave(filename = here::here(file.path("results", results_name, "Y_PPC_v4.png")),
+       plot = p,
+       width = 6.5, height = 6.5, dpi = 300, limitsize = TRUE,
+       scale = 1.75,
+       units = "in"
+)
+
+
 
 
 ```
