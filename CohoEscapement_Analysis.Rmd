@@ -1293,7 +1293,7 @@ Y_PPC<-as.data.frame(apply(rstan::extract(stanfit)$Y_rep,2, mean))%>%
 
 
 p <- ggplot(Y_PPC, aes(x = Y+1, y = Y+1)) +
-  geom_point(aes(y=mean))+
+  geom_point(aes(x = jitter(Y+1),y=mean))+
   labs(x = substitute(italic(r)), y = "95% PPI") +
   geom_line(color="black") +
   scale_x_log10()+
