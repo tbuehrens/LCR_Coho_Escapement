@@ -108,6 +108,7 @@ GRTSdataprep<-function(GRTSpops,data.dir,db.dir,accdb.name,years, write){
         tdat$Reach_Num<-as.numeric(as.factor(tdat$HEADER_STREAM_REACH_Code))
         tdat<-tdat[order(tdat$Reach_Num),]
         for(j in 1:length(unique(tdat$Reach_Num))){
+          #print(paste0(i,"_",j))
           ttdat<-NULL
           ttdat<-tdat[which(tdat$Reach_Num==unique(tdat$Reach_Num)[j]),]
           g[i,j]<-ttdat$Reach_Length
