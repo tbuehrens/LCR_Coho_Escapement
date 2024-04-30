@@ -84,17 +84,17 @@ models.dir<-"models"
 
 #datasets
 #accdb.name<-"TWS_Analysis_Only_v9.2.5.accdb"
-accdb.name<-"TWS_Analysis_Only_v9.2.6from2013Forward05302023.accdb"
-traphauldata.name<-"TH_dat_05_18_23_w_nflewisabvdam.csv"
-frame_file.name<-"Coho_frames_04.05.2022.csv"
-RpF_file.name<-"Coho_RpF_02.27.2023_LB.csv"
-IMWdata_v2.name<-"IMW_redds_02_12_2023_V2.csv"
-IMWdata.name<-"IMW_redds_02.12.2023.csv"
+accdb.name<-"CohoAnalysis_2018_2023.accdb"
+traphauldata.name<-"TH_dat_02_26_24_w_nflewisabvdam.csv"
+frame_file.name<-"Coho_frames_06.15.23_SVP_TBedit.csv"
+RpF_file.name<-"Coho_RpF_03.11.2024_LB_with_Live_Clips_JL.csv"
+IMWdata_v2.name<-"IMW_redds_04_29_2024_V2.csv"
+IMWdata.name<-"IMW_redds_04.29.2024.csv"
 
 
 # set data summarization params
-years=c(2010:2022)
-GRTSdat.date<-"2023-06-26"
+years=c(2018:2023)
+GRTSdat.date<-"2024-04-30"
 assume_Del_Ost_census<-TRUE
 UpdateGRTSdata<-FALSE
 WriteGRTSdata<-FALSE
@@ -112,7 +112,7 @@ burn=1000
 iter=4000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 
-results_name<-"Results_2024-04-06"
+results_name<-"Results_2024-04-30"
 ```
 
 # Load & Combine Data for Old JAGs Model
