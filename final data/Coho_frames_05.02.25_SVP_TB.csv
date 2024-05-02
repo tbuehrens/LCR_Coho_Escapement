@@ -1,0 +1,29 @@
+TRT_Population,GRTS_Population,Order,F_miles,Diffx21_22,F_miles_2021,F_miles_2020,F_miles_2019,F_miles_2018,old_F_miles_pre_2018,Comments_SVP_6.15.23,Comments_SVP_5.30.2019
+"Grays, Chinook",Grays_Chinook,1,138.9731881,-23.7268119,162.7,162.7,162.7,162.7,171,Makes Sense,Truncated at SF Grays Falls
+"Elochoman, Skamokawa",Elochoman_Skamokawa,2,100.13,-0.18,100.31,100.31,100.31,100.31,100,,
+"Mill, Abernathy, Germany, Coal",Abernathy,3,22.5,-0.21,22.71,22.71,22.71,22.71,22.7,,Includes Abernathy Above AFTC
+"Mill, Abernathy, Germany, Coal",Abernathy_Above AFTC,4,12.81,-0.12,12.93,12.93,12.93,12.93,13,,
+"Mill, Abernathy, Germany, Coal",Mill,5,24.76,0.37,24.39,24.39,24.39,24.39,24.38758,,
+"Mill, Abernathy, Germany, Coal",Germany,6,12.18,-0.16,12.34,12.34,12.34,12.34,12.33857,,
+"Mill, Abernathy, Germany, Coal",Coal,7,8.31,-0.43,8.74,,,,,,"Missing until 1/21/21 - SVP.  Was 10 miles with just truncating harmony Cr @ falls, now truncated 1.26 miles for 'Stewart Creek Gradient Barrier"" - 1/26/21"
+Upper Cowlitz and Cispus,Upper Cowlitz and Cispus,8,208.72,0.22071,208.49929,208.49929,208.49929,0,0,,
+Tilton,Tilton,9,69.52,-54.69061,124.21061,124.21061,124.21061,0,0,,
+Lower Cowlitz,Lower Cowlitz,10,196.42,-7.84,204.26,204.26,204.26,204.26,234.46,Makes Sense,"Truncated @ NF Arkansas Falls, Hill Creek Falls, Cougar Cr Falls, Bill Creek Water Slide, Timber Trails Creek Falls, and Brights Creek Falls"
+Lower Cowlitz,Delameter_Above Weir,11,11.59,0.32,11.27,11.27,14.71,14.71,9.44,,Do not know why it's different.  Truncated @ Monahan Falls and Monahan Trib
+Lower Cowlitz,Lacamas_Above Weir,12,63.21,-0.73,63.94,63.94,63.94,63.94,63.9,,
+Lower Cowlitz,Olequa_Above Weir,13,104.7,1.52,103.18,103.18,103.18,103.18,104.5,,Truncated @ Stillwater Cr Falls
+Lower Cowlitz,Ostrander_Above Weir,14,11.89,-0.09,11.98,11.98,11.98,11.98,8.7,,Not sure why it was 3.28 mi short
+NF Toutle,Green,15,48.13,0.08,48.05,48.05,48.05,48.05,52,,Truncated at Schultz Cr Falls
+NF Toutle,Upper NF Toutle,16,47.35,-2.765016,50.115016,50.115016,50.115016,0,0,,
+NF Toutle,NF_MS Toutle,17,45.21,0.88,44.33,44.33,44.33,44.33,49,,Truncated @ Cline Creek Falls
+SF Toutle,SF Toutle,18,56.84,0.17,56.67,56.67,56.67,56.67,59,,Truncated @  18 Creek Falls and SFT LB Falls
+Coweeman,Coweeman,19,59.54,0.2,59.34,59.34,59.34,59.34,60,,Truncated for Mulholland Trib Falls
+Kalama,Kalama,20,26.97,-5.08,32.05,32.05,32.05,32.05,34,Makes Sense,"Removed some non-existent streams in lower Kalama, and truncated for Toteff Falls"
+NF Lewis,Lower Lewis,21,44.58,-1.23,45.81,45.81,45.81,45.81,46,Includes Gee,
+NF Lewis,Upper NF Lewis,22,84.03,-0.00371,84.03371,84.03371,84.03371,0,0,Need to figure out if MS Lewis included for modeled,
+NF Lewis,Cedar,23,40.94,-1.46,42.4,42.4,42.4,42.4,40,,Includes 2.62 below Grist Mill Fish Ladder
+EF Lewis,EF Lewis,24,81.11,-6.38,87.49,87.49,87.49,87.49,88,,Truncated for Eddie Falls
+Salmon Creek,Salmon Creek,25,116.7,-58.59,175.29,175.29,175.29,175.29,175,Makes Sense,
+Washougal,Washougal,26,47.86,-1.6,49.46,49.46,49.86,55.34,55,,Truncated WF at Double Drop falls (5.88 mi) on 7/19/20
+Lower Gorge,Lower Gorge,27,31.21,-0.08,31.29,31.29,31.29,33.07,34,,Does not include any of Duncan above Weir. Truncated @ Little Creek Gradient.  In 2020-2018 included Duncan Trib (.47 mi).  I think we decided to not include because basically a permanent man-made barrier.
+Lower Gorge,Duncan_Above Weir,28,1.6,-0.02,1.62,1.62,1.62,1.62,1.307985955,,Includes mainstem (1.31) and seeps (0.31). Does not include lake and trib (0.47) with barrier at SR14

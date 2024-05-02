@@ -86,7 +86,7 @@ models.dir<-"models"
 #accdb.name<-"TWS_Analysis_Only_v9.2.5.accdb"
 accdb.name<-"CohoAnalysis_2018_2023.accdb"
 traphauldata.name<-"TH_dat_02_26_24_w_nflewisabvdam.csv"
-frame_file.name<-"Coho_frames_06.15.23_SVP_TBedit.csv"
+frame_file.name<-"Coho_frames_05.02.25_SVP_TB.csv"
 RpF_file.name<-"Coho_RpF_03.11.2024_LB_with_Live_Clips_JL.csv"
 IMWdata_v2.name<-"IMW_redds_04_29_2024_V2.csv"
 IMWdata.name<-"IMW_redds_04.29.2024.csv"
@@ -94,10 +94,10 @@ IMWdata.name<-"IMW_redds_04.29.2024.csv"
 
 # set data summarization params
 years=c(2018:2023)
-GRTSdat.date<-"2024-04-30"
+GRTSdat.date<-"2024-05-02"
 assume_Del_Ost_census<-TRUE
-UpdateGRTSdata<-FALSE
-WriteGRTSdata<-FALSE
+UpdateGRTSdata<-TRUE
+WriteGRTSdata<-TRUE
 
 #model files
 stan_model.file<-"CohoEscapement_Model_2_16_2023.stan"
