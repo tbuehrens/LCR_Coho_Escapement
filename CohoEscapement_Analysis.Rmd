@@ -83,8 +83,8 @@ models.dir<-"models"
 
 
 #datasets
-#accdb.name<-"TWS_Analysis_Only_v9.2.5.accdb"
 accdb.name<-"CohoAnalysis_2018_2023.accdb"
+#accdb.name<-"CohoAnalysis_2012_2017.accdb"
 traphauldata.name<-"TH_dat_02_26_24_w_nflewisabvdam.csv"
 frame_file.name<-"Coho_frames_05.02.25_SVP_TB.csv"
 RpF_file.name<-"Coho_RpF_03.11.2024_LB_with_Live_Clips_JL.csv"
@@ -93,11 +93,11 @@ IMWdata.name<-"IMW_redds_04.29.2024.csv"
 
 
 # set data summarization params
-years=c(2018:2023)
+years=c(2010:2023)
 GRTSdat.date<-"2024-05-02"
 assume_Del_Ost_census<-TRUE
-UpdateGRTSdata<-TRUE
-WriteGRTSdata<-TRUE
+UpdateGRTSdata<-FALSE
+WriteGRTSdata<-FALSE
 
 #model files
 stan_model.file<-"CohoEscapement_Model_2_16_2023.stan"
@@ -135,7 +135,9 @@ The code:
 #====================================
 #Load Population List & Frame Mileage
 #====================================
-GRTSpops<-data.frame(read_csv(file.path(csv.data.dir,frame_file.name)))
+GRTSpops<-data.frame(read_csv(file.path(csv.data.dir,frame_file.name)))#%>%
+  # filter(GRTS_Population!="Coal")%>%
+  # mutate(Order=ifelse(Order>6,Order-1,Order))
 #=====================================
 #Query and Organize GRTS Data from TWS
 #=====================================
@@ -249,7 +251,7 @@ for(i in 1:yrs){
   #make assumption about census in Del and Ost
   #===========================================
   if(assume_Del_Ost_census==T){
-    if(years[i]%in%c(2014:2018)){
+    if(years[i]%in%c(2014:years[length(years)])){
       mis_miles[GRTSpops$GRTS_Population%in%c("Delameter_Above Weir","Ostrander_Above Weir"),i]<-0
     }
     if(years[i]%in%c(2010:2013)){
@@ -751,7 +753,7 @@ standat<-list(
   P = jagsdat$pops[1],
   F_miles = t(jagsdat$F_miles),
   GRTS_miles = t(jagsdat$GRTS_miles),
-  missed_miles = t(jagsdat$mis_miles),#check to verify that GRTS + Index + Miss = Fmiles FIX becaus added IMW miles to index!!!
+  missed_miles = apply(t(jagsdat$mis_miles),1:2,function(x) max(0,x)),#check to verify that GRTS + Index + Miss = Fmiles FIX becaus added IMW miles to index!!!
   #pM
   n_pm = nrow(MS_H), #number of pMark Likelihoods
   H = MS_H$H, #Hatchery adults
