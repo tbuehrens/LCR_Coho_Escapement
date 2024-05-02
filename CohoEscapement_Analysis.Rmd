@@ -820,7 +820,12 @@ if(fit_Stan == TRUE){
   #=============
   #compile model
   #=============
-  model<-stan_model(file = file.path(models.dir,stan_model.file))
+  if(!file.exists(file.path(models.dir,gsub(".stan",".rds",stan_model.file)))){
+    model<-stan_model(file = file.path(models.dir,stan_model.file))
+    saveRDS(model,file.path(models.dir,gsub(".stan",".rds",stan_model.file)))
+  }else{
+    model<-readRDS(file.path(models.dir,gsub(".stan",".rds",stan_model.file)))
+  }
   #===========
   # Fit Model
   #===========
