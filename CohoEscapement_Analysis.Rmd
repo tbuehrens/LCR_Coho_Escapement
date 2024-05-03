@@ -96,6 +96,7 @@ IMWdata.name<-"IMW_redds_04.29.2024.csv"
 years=c(2010:2023)
 GRTSdat.date<-"2024-05-02"
 assume_Del_Ost_census<-TRUE
+assume_Coal_Duncan_census<-TRUE
 UpdateGRTSdata<-FALSE
 WriteGRTSdata<-FALSE
 
@@ -257,7 +258,6 @@ for(i in 1:yrs){
     if(years[i]%in%c(2010:2013)){
       #remove mileage above culvert on ostrander, remove mileage above Monahan falls and tiny no fish tribs on upper delameter
       mis_miles[GRTSpops$GRTS_Population%in%c("Delameter_Above Weir","Ostrander_Above Weir"),i]<-mis_miles[GRTSpops$GRTS_Population%in%c("Delameter_Above Weir","Ostrander_Above Weir"),i] - c(4.31,7.84)     }
-    
   }
   #============================================
   F_miles[,i]=GRTSdat$F_miles
@@ -268,11 +268,11 @@ for(i in 1:yrs){
   AS[,i]=GRTSdat$AS+GRTSdat$I.AS
   #use max of SGS or weir counts where weirs don't appear to be selective for sex
   nonselectiveweirs<-c("Abernathy_Above AFTC","Abernathy","Germany","Mill","Duncan_Above Weir")
-  Fm[GRTSdat$GRTS_Population%in%nonselectiveweirs,i] =pmax(Fm[GRTSdat$GRTS_Population%in%nonselectiveweirs,i],GRTSdat$F_weir[GRTSdat$GRTS_Population%in%nonselectiveweirs])
-  AS[GRTSdat$GRTS_Population%in%nonselectiveweirs,i] =pmax(AS[GRTSdat$GRTS_Population%in%nonselectiveweirs,i],GRTSdat$A_weir[GRTSdat$GRTS_Population%in%nonselectiveweirs])
+  Fm[GRTSdat$GRTS_Population%in%nonselectiveweirs,i]=pmax(Fm[GRTSdat$GRTS_Population%in%nonselectiveweirs,i],GRTSdat$F_weir[GRTSdat$GRTS_Population%in%nonselectiveweirs])
+  AS[GRTSdat$GRTS_Population%in%nonselectiveweirs,i]=pmax(AS[GRTSdat$GRTS_Population%in%nonselectiveweirs,i],GRTSdat$A_weir[GRTSdat$GRTS_Population%in%nonselectiveweirs])
   #for H and AS use max of grts or weir
-  H[,i]=pmax(GRTSdat$H,GRTSdat$H_weir)
-  MS[,i]=pmax(GRTSdat$MS,GRTSdat$MS_weir)
+  H[,i]=pmax(GRTSdat$H + GRTSdat%>%mutate(I.H=ifelse(GRTS_Population=="Coal",I.H,0))%>%dplyr::select(I.H)%>%pull(),GRTSdat$H_weir)
+  MS[,i]=pmax(GRTSdat$MS + GRTSdat%>%mutate(I.MS=ifelse(GRTS_Population=="Coal",I.MS,0))%>%dplyr::select(I.MS)%>%pull(),GRTSdat$MS_weir)
   #except supplement with index data where census SGS occurred
   H[mis_miles[,i]==0,i]=pmax(H[mis_miles[,i]==0,i],GRTSdat$H[mis_miles[,i]==0]+GRTSdat$I.H[mis_miles[,i]==0])
   MS[mis_miles[,i]==0,i]=pmax(MS[mis_miles[,i]==0,i],GRTSdat$MS[mis_miles[,i]==0]+GRTSdat$I.MS[mis_miles[,i]==0])
@@ -743,6 +743,7 @@ catch_a_M_SD<-catch_a_M_mu_dat%>%
   ungroup()
 
 
+
 #===================
 #make stan data list
 #===================
@@ -803,6 +804,31 @@ standat<-list(
   #priors
   cauchy_scale = 0.5
 )
+
+
+#==============
+# Data checks
+#=============
+
+#in years with index only data (where pindex =1, do we have an index miles?)
+problems <- jagsdat$mis_miles %>%
+  t() %>%
+  reshape::melt() %>%
+  bind_cols(standat$index_data_only %>%
+              reshape::melt()
+            ) %>%
+  setNames(c("Year", "GRTS_Population", "Missed_miles", "GRTS_order", "Year_num", "index_data_only")) %>%
+  filter(Missed_miles > 0 & index_data_only == 1)
+
+#============
+#manual Fixes to problems
+#============
+if(assume_Coal_Duncan_census==T){
+  #set duncan and coal cr missed to 0
+  standat$missed_miles[as.numeric(rownames(standat$missed_miles))>2017,colnames(standat$missed_miles)=="Coal"]<-0
+  standat$missed_miles[,colnames(standat$missed_miles)=="Duncan_Above Weir"]<-0  
+}
+
 saveRDS(standat,file.path(csv.data.dir,paste0("standata_",GRTSdat.date,".rds")))
 ```
 
