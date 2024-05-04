@@ -1967,7 +1967,8 @@ ggsave(file.path(results.dir,subDir,"abundance_corr_plot.png"),
 
 trends<-res$eps_lambda%>%
   reshape2::melt()%>%
-  setNames(c("iteration","GRTS_Population","Year","eps_lambda"))%>%
+  setNames(c("iteration","Year","GRTS_Population","eps_lambda"))%>%
+  mutate(GRTS_Population=as.character(GRTS_Population))%>%
   bind_rows(res$eps_lambda_all%>%
               reshape2::melt()%>%
               setNames(c("iteration","Year","eps_lambda"))%>%
@@ -1987,9 +1988,9 @@ trends<-res$eps_lambda%>%
             `75%` = quantile(trend,0.75),
             `97.5%` = quantile(trend,0.975)
   )%>%
-  bind_rows(expand_grid(Year=years[1],GRTS_Population=c(GRTSpops$GRTS_Population, "WA LCR ESU"),mean=0,sd=0,`2.5%`=0,`25%`=0,`50%`=0,`75%`=0,`97.5%`=0))%>%
-  mutate(group=ifelse(GRTS_Population=="WA LCR ESU","WA LCR ESU","Sub-population"))
-
+  bind_rows(expand_grid(Year=years[1],GRTS_Population=c(1:pops[1], "WA LCR ESU"),mean=0,sd=0,`2.5%`=0,`25%`=0,`50%`=0,`75%`=0,`97.5%`=0))%>%
+  mutate(group=ifelse(GRTS_Population=="WA LCR ESU","WA LCR ESU","Sub-population"))%>%
+  arrange(GRTS_Population,Year)
 
 ribbon_data <- trends %>%
   filter(GRTS_Population == "WA LCR ESU")
