@@ -520,6 +520,12 @@ jagsdat$F_miles[row.names(jagsdat$F_miles)=="Upper NF Lewis",which(years%in%c(20
 #set cauchy prior
 #================
 jagsdat$cauchy_scale<-0.5
+
+
+#Fix pHOS data for coal
+jagsdat$H[rownames(jagsdat$H)=="Coal",colnames(jagsdat$H)<2018]<-jagsdat$H[rownames(jagsdat$H)%in%c("Abernathy"),colnames(jagsdat$H)<2018]
+jagsdat$MS[rownames(jagsdat$MS)=="Coal",colnames(jagsdat$H)<2018]<-jagsdat$MS[rownames(jagsdat$MS)%in%c("Abernathy"),colnames(jagsdat$H)<2018]
+
 ```
 
 # Reconfigure Data for New Stan Model
