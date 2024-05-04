@@ -113,7 +113,7 @@ burn=1000
 iter=4000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 
-results_name<-"Results_2024-04-30"
+results_name<-"Results_2024-05-04"
 ```
 
 # Load & Combine Data for Old JAGs Model
@@ -832,6 +832,7 @@ problems <- jagsdat$mis_miles %>%
 if(assume_Coal_Duncan_census==T){
   #set duncan and coal cr missed to 0
   standat$missed_miles[as.numeric(rownames(standat$missed_miles))>2017,colnames(standat$missed_miles)=="Coal"]<-0
+    standat$missed_miles[as.numeric(rownames(standat$missed_miles))<2018,colnames(standat$missed_miles)=="Coal"]<-3.86
   standat$missed_miles[,colnames(standat$missed_miles)=="Duncan_Above Weir"]<-0  
 }
 

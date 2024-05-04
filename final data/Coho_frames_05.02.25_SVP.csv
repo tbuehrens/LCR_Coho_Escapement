@@ -13,7 +13,7 @@ Lower Gorge,Duncan_Above Weir,27,1.6,-0.02,1.62,1.62,1.62,1.62,1.307985955,,Incl
 Lower Gorge,Lower Gorge,26,31.21,-0.08,31.29,31.29,31.29,33.07,34,,Does not include any of Duncan above Weir. Truncated @ Little Creek Gradient.  In 2020-2018 included Duncan Trib (.47 mi).  I think we decided to not include because basically a permanent man-made barrier.
 "Mill, Abernathy, Germany, Coal",Abernathy,3,22.5,-0.21,22.71,22.71,22.71,22.71,22.7,,Includes Abernathy Above AFTC
 "Mill, Abernathy, Germany, Coal",Abernathy_Above AFTC,4,12.81,-0.12,12.93,12.93,12.93,12.93,13,,
-"Mill, Abernathy, Germany, Coal",Coal,,8.31,-0.43,8.74,,,,,,"Missing until 1/21/21 - SVP.  Was 10 miles with just truncating harmony Cr @ falls, now truncated 1.26 miles for 'Stewart Creek Gradient Barrier"" - 1/26/21"
+,Coal,,8.31,-0.43,8.74,,,,,,"Missing until 1/21/21 - SVP.  Was 10 miles with just truncating harmony Cr @ falls, now truncated 1.26 miles for 'Stewart Creek Gradient Barrier"" - 1/26/21"
 "Mill, Abernathy, Germany, Coal",Germany,6,12.18,-0.16,12.34,12.34,12.34,12.34,12.33857,,
 "Mill, Abernathy, Germany, Coal",Mill,5,24.76,0.37,24.39,24.39,24.39,24.39,24.38758,,
 NF Lewis,Cedar,22,40.94,-1.46,42.4,42.4,42.4,42.4,40,,Includes 2.62 below Grist Mill Fish Ladder

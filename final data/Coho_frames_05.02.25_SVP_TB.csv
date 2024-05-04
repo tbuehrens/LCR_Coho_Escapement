@@ -2,7 +2,7 @@ TRT_Population,GRTS_Population,Order,F_miles,Diffx21_22,F_miles_2021,F_miles_202
 "Grays, Chinook",Grays_Chinook,1,138.9731881,-23.7268119,162.7,162.7,162.7,162.7,171,Makes Sense,Truncated at SF Grays Falls
 "Elochoman, Skamokawa",Elochoman_Skamokawa,2,100.13,-0.18,100.31,100.31,100.31,100.31,100,,
 "Mill, Abernathy, Germany, Coal",Abernathy,3,22.5,-0.21,22.71,22.71,22.71,22.71,22.7,,Includes Abernathy Above AFTC
-"Mill, Abernathy, Germany, Coal",Abernathy_Above AFTC,4,12.81,-0.12,12.93,12.93,12.93,12.93,13,,
+,Abernathy_Above AFTC,4,12.81,-0.12,12.93,12.93,12.93,12.93,13,,
 "Mill, Abernathy, Germany, Coal",Mill,5,24.76,0.37,24.39,24.39,24.39,24.39,24.38758,,
 "Mill, Abernathy, Germany, Coal",Germany,6,12.18,-0.16,12.34,12.34,12.34,12.34,12.33857,,
 "Mill, Abernathy, Germany, Coal",Coal,7,8.31,-0.43,8.74,,,,,,"Missing until 1/21/21 - SVP.  Was 10 miles with just truncating harmony Cr @ falls, now truncated 1.26 miles for 'Stewart Creek Gradient Barrier"" - 1/26/21"
