@@ -218,7 +218,7 @@ model{
   //   mu_local[i] = (Redds[yr_Y[i],pop_Y[i]] * (1 - p_Index[yr_Y[i],pop_Y[i]])) / (GRTS_miles[yr_Y[i],pop_Y[i]] + missed_miles[yr_Y[i],pop_Y[i]]);
   //   Y[i] ~ neg_binomial_2(mu_local[i] * g[i], 1/square(sigma_disp[pop_Y[i]]));
   // }
-  #Y GRTS redds zero inflated
+  //Y GRTS redds zero inflated
   for(i in 1:n_Y){
     mu_local[i] = (Redds[yr_Y[i],pop_Y[i]] * (1 - p_Index[yr_Y[i],pop_Y[i]])) / (GRTS_miles[yr_Y[i],pop_Y[i]] + missed_miles[yr_Y[i],pop_Y[i]]);
     if(Y[i]==0){
@@ -227,7 +227,7 @@ model{
         bernoulli_lpmf(1 | 1-p_zero[pop_Y[i]]) + neg_binomial_2_lpmf(0 | mu_local[i] * g[i], 1/square(sigma_disp[pop_Y[i]])) // probability of 0 but from the neg bim distribution (not extra)
       );
     } else{
-      target += bernoulli_lpmf(1 | 1-p_zero[pop_Y[i]]) + neg_binomial_2_lpmf(Y[i], mu_local[i] * g[i], 1/square(sigma_disp[pop_Y[i]])); 
+      target += bernoulli_lpmf(1 | 1-p_zero[pop_Y[i]]) + neg_binomial_2_lpmf(Y[i] | mu_local[i] * g[i], 1/square(sigma_disp[pop_Y[i]]));
     }
   }
   // Trap and Haul Data
@@ -282,9 +282,16 @@ generated quantities {
     Y2_rep[i] = poisson_rng(Redds[yr_Y2[i], pop_Y2[i]] * p_Index[yr_Y2[i], pop_Y2[i]]);
   }
 
+  //Posterior Predictive for Y
+  // real mu_local_rep[n_Y];
+  // int<lower=0> Y_rep[n_Y];
+  // for (i in 1:n_Y) {
+  //   mu_local_rep[i] = (Redds[yr_Y[i], pop_Y[i]] * (1 - p_Index[yr_Y[i], pop_Y[i]])) / (GRTS_miles[yr_Y[i], pop_Y[i]] + missed_miles[yr_Y[i], pop_Y[i]]);
+  //   Y_rep[i] = neg_binomial_2_rng(mu_local_rep[i] * g[i], 1 / square(sigma_disp[pop_Y[i]]));
+  // }
   // Posterior Predictive for Y
   real mu_local_rep[n_Y];
-  real<lower=0>extra_0[n_y];
+  int<lower=0>extra_0[n_Y];
   int<lower=0> Y_rep[n_Y];
   for (i in 1:n_Y) {
     extra_0[i] = bernoulli_rng(1 - p_zero[pop_Y[i]]);
@@ -292,10 +299,9 @@ generated quantities {
     if(extra_0[i] == 0){
       Y_rep[i] = 0;
     }else{
-      Y_rep[i] = neg_binomial_2_rng(mu_local_rep[i] * g[i], 1 / square(sigma_disp[pop_Y[i]])); 
+      Y_rep[i] = neg_binomial_2_rng(mu_local_rep[i] * g[i], 1 / square(sigma_disp[pop_Y[i]]));
     }
   }
-
   // Posterior Predictive for Trap and Haul Data
   int<lower=0> TH_a_M_rep[T, n_TH_pops];
   int<lower=0> TH_a_UM_rep[T, n_TH_pops];
