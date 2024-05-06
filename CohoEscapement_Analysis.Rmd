@@ -101,7 +101,7 @@ UpdateGRTSdata<-FALSE
 WriteGRTSdata<-FALSE
 
 #model files
-stan_model.file<-"CohoEscapement_Model_2_16_2023.stan"
+stan_model.file<-"CohoEscapement_Model_2_16_2023_zinb.stan"
 
 #model fitting
 fit_Stan = FALSE
