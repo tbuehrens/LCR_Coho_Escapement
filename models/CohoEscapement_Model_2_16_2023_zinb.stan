@@ -224,10 +224,10 @@ model{
     if(Y[i]==0){
       target += log_sum_exp(
         bernoulli_lpmf(0 | 1-p_zero[pop_Y[i]]), //prob of extra zer0
-        bernoulli_lpmf(1 | 1-p_zero[pop_Y[i]]) + neg_binomial_2_lpmf(0 | mu_local[i] * g[i], 1/square(sigma_disp[pop_Y[i]])) // probability of 0 but from the neg bim distribution (not extra)
+        bernoulli_lpmf(1 | 1-p_zero[pop_Y[i]]) + neg_binomial_2_lpmf(0 | (mu_local[i] * g[i])/ (1-p_zero[pop_Y[i]]), 1/square(sigma_disp[pop_Y[i]])) // probability of 0 but from the neg bim distribution (not extra)
       );
     } else{
-      target += bernoulli_lpmf(1 | 1-p_zero[pop_Y[i]]) + neg_binomial_2_lpmf(Y[i] | mu_local[i] * g[i], 1/square(sigma_disp[pop_Y[i]]));
+      target += bernoulli_lpmf(1 | 1-p_zero[pop_Y[i]]) + neg_binomial_2_lpmf(Y[i] | (mu_local[i] * g[i])/(1-p_zero[pop_Y[i]]), 1/square(sigma_disp[pop_Y[i]]));
     }
   }
   // Trap and Haul Data
@@ -299,7 +299,7 @@ generated quantities {
     if(extra_0[i] == 0){
       Y_rep[i] = 0;
     }else{
-      Y_rep[i] = neg_binomial_2_rng(mu_local_rep[i] * g[i], 1 / square(sigma_disp[pop_Y[i]]));
+      Y_rep[i] = neg_binomial_2_rng((mu_local_rep[i] * g[i])/(1-p_zero[pop_Y[i]]), 1 / square(sigma_disp[pop_Y[i]]));
     }
   }
   // Posterior Predictive for Trap and Haul Data
