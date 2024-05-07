@@ -110,7 +110,7 @@ fit_Stan = FALSE
 chains=4
 thin=1
 burn=1000
-iter=4000
+iter=2000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 
 results_name<-"Results_2024-05-04"
@@ -1742,7 +1742,7 @@ ggsave(file.path(results.dir,subDir,"pM.png"),
 
 
 Bradford2000=tibble(
-  values = c(3.9, 19, 44) * median(res$mu_pF),
+  values = c(3.9, 19, 44) / median(res$mu_pF),
   `Bradford et al. (2000) N*` = c("min","mean","max")
   )
 
