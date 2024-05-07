@@ -1754,7 +1754,7 @@ p<-ggplot(arrange(transform(Density_results,Population=factor(Population,levels=
   #ylim(0.0,200) +
   # #scale_y_log10(breaks=c(0.001,0.01,0.1,1,10,100),labels=c(0.001,0.01,0.1,1,10,100),limits = c(.001,200),expand=c(0,0)) +
   # #scale_y_log10()+
-  scale_y_log10(limits = c(0.001, 200),
+  scale_y_log10(limits = c(0.001, 220),
                 labels = trans_format("log10", math_format(10^.x)),
                 breaks=trans_breaks("log10", function(x) 10^x, n=4)) +
   theme_bw() +
