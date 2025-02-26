@@ -55,10 +55,10 @@ library(reshape2)
 #=====================
 #Specify Forecast Year
 #=====================
-f_year<-2023 #this is the year we want to predict prelim escapement for
-results_folder<-"Results_2023-06-26" #trib estimate results to use.
-wild_results<-"2010_2022_Coho_TRT_UM_ad.csv"
-total_results<-"2010_2022_Coho_TRT_Adults.csv"
+f_year<-2024 #this is the year we want to predict prelim escapement for
+results_folder<-"Results_2024-05-06" #trib estimate results to use.
+wild_results<-"2010_2023_Coho_TRT_UM_ad.csv"
+total_results<-"2010_2023_Coho_TRT_Adults.csv"
 #===========================
 #Data update links and files
 #===========================
