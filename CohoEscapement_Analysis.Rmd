@@ -83,22 +83,27 @@ models.dir<-"models"
 
 
 #datasets
+frame_file.name<-"Coho_frames_05.02.24_SVP_TB.csv"
+RpF_file.name<-"Coho_RpF_03.06.2025_LB_with_Live_Clips_JL_05272025.csv"
+IMWdata_v2.name<-"IMW_redds_06_19_2025_V2.csv"
+IMWdata.name<-"IMW_redds_06.19.2025.csv"
+
+
+
 accdb.name<-"CohoAnalysis_2018_2023.accdb"
 #accdb.name<-"CohoAnalysis_2012_2017.accdb"
-traphauldata.name<-"TH_dat_02_26_24_w_nflewisabvdam.csv"
-frame_file.name<-"Coho_frames_05.02.25_SVP_TB.csv"
-RpF_file.name<-"Coho_RpF_03.11.2024_LB_with_Live_Clips_JL.csv"
-IMWdata_v2.name<-"IMW_redds_04_29_2024_V2.csv"
-IMWdata.name<-"IMW_redds_04.29.2024.csv"
+traphauldata.name<-"TH_dat_02_19_25_w_nflewisabvdam.csv"
+
+
 
 
 # set data summarization params
-years=c(2010:2023)
-GRTSdat.date<-"2024-05-02"
+years=c(2024:2024)
+GRTSdat.date<-"2025-06-19"
 assume_Del_Ost_census<-TRUE
 assume_Coal_Duncan_census<-TRUE
-UpdateGRTSdata<-FALSE
-WriteGRTSdata<-FALSE
+UpdateGRTSdata<-TRUE
+WriteGRTSdata<-TRUE
 
 #model files
 stan_model.file<-"CohoEscapement_Model_2_16_2023_zinb.stan"
@@ -113,7 +118,7 @@ burn=1000
 iter=2000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 
-results_name<-"Results_2024-05-04"
+results_name<-"Results_2025-06-19"
 ```
 
 # Load & Combine Data for Old JAGs Model
