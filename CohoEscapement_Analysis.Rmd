@@ -86,24 +86,25 @@ models.dir<-"models"
 frame_file.name<-"Coho_frames_05.02.24_SVP_TB.csv"
 RpF_file.name<-"Coho_RpF_03.06.2025_LB_with_Live_Clips_JL_05272025.csv"
 IMWdata_v2.name<-"IMW_redds_06_19_2025_V2.csv"
-IMWdata.name<-"IMW_redds_06.19.2025.csv"
+IMWdata.name<-"IMW_redds_06_19_2025.csv"
 
 
 
-accdb.name<-"CohoAnalysis_2018_2023.accdb"
+#accdb.name<-"CohoAnalysis_2018_2023.accdb"
 #accdb.name<-"CohoAnalysis_2012_2017.accdb"
+accdb.name<-"TWS_Analysis_Only_v9.2_2019_2024_05292025.accdb"
 traphauldata.name<-"TH_dat_02_19_25_w_nflewisabvdam.csv"
 
 
 
 
 # set data summarization params
-years=c(2024:2024)
+years=c(2010:2024)
 GRTSdat.date<-"2025-06-19"
 assume_Del_Ost_census<-TRUE
 assume_Coal_Duncan_census<-TRUE
-UpdateGRTSdata<-TRUE
-WriteGRTSdata<-TRUE
+UpdateGRTSdata<-FALSE
+WriteGRTSdata<-FALSE
 
 #model files
 stan_model.file<-"CohoEscapement_Model_2_16_2023_zinb.stan"
@@ -837,7 +838,7 @@ problems <- jagsdat$mis_miles %>%
 if(assume_Coal_Duncan_census==T){
   #set duncan and coal cr missed to 0
   standat$missed_miles[as.numeric(rownames(standat$missed_miles))>2017,colnames(standat$missed_miles)=="Coal"]<-0
-    standat$missed_miles[as.numeric(rownames(standat$missed_miles))<2018,colnames(standat$missed_miles)=="Coal"]<-3.86
+  standat$missed_miles[as.numeric(rownames(standat$missed_miles))<2018,colnames(standat$missed_miles)=="Coal"]<-3.86
   standat$missed_miles[,colnames(standat$missed_miles)=="Duncan_Above Weir"]<-0  
 }
 
