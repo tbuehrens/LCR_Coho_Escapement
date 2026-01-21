@@ -55,10 +55,10 @@ library(reshape2)
 #=====================
 #Specify Forecast Year
 #=====================
-f_year<-2024 #this is the year we want to predict prelim escapement for
-results_folder<-"Results_2024-05-06" #trib estimate results to use.
-wild_results<-"2010_2023_Coho_TRT_UM_ad.csv"
-total_results<-"2010_2023_Coho_TRT_Adults.csv"
+f_year<-2025 #this is the year we want to predict prelim escapement for
+results_folder<-"Results_2025-06-19" #trib estimate results to use.
+wild_results<-"2010_2024_Coho_TRT_UM_ad.csv"
+total_results<-"2010_2024_Coho_TRT_Adults.csv"
 #===========================
 #Data update links and files
 #===========================
@@ -92,8 +92,8 @@ dat%>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
-dat<-dat%>%
-  mutate_at(.vars=c("Bonneville.total","Willamette.total", "Clackamas.w", "Cowlitz.barrier.total", "Washougal.hatchery.late.h"),.funs=function(x) c(scale(log(x))))
+# dat<-dat%>%
+#   mutate_at(.vars=c("Bonneville.total","Willamette.total", "Clackamas.w", "Cowlitz.barrier.total", "Washougal.hatchery.late.h"),.funs=function(x) c(scale(log(x))))
 ```
 
 ## Fit Model & Summarize Results (version 1)
@@ -103,11 +103,11 @@ if(!file.exists("results/prelim/m1.RDS")){
   knots<-length(unique(dat$Year))-1
   m1<-stan_gamm4(log(LCR.wild) ~ 
                s(Year,bs="ps") +
-               Bonneville.total + 
-               Willamette.total +
-               Clackamas.w +
-               Cowlitz.barrier.total +
-               Washougal.hatchery.late.h,
+               log(Bonneville.total) + 
+               log(Willamette.total) +
+               log(Clackamas.w) +
+               log(Cowlitz.barrier.total)+
+               log(Washougal.hatchery.late.h),
              
                #prior=laplace(),
                prior=hs(
@@ -142,11 +142,11 @@ if(!file.exists("results/prelim/m2.RDS")){
   knots<-length(unique(dat$Year))-1
   m2<-stan_gamm4(log(LCR.total) ~ 
                    s(Year,bs="ps") +
-                   Bonneville.total + 
-                   Willamette.total +
-                   Clackamas.w +
-                   Cowlitz.barrier.total +
-                   Washougal.hatchery.late.h,
+                   log(Bonneville.total) + 
+                   log(Willamette.total)+
+                   log(Clackamas.w)+
+                   log(Cowlitz.barrier.total) +
+                   log(Washougal.hatchery.late.h),
                  
                  #prior=laplace(),
                  prior=hs(
@@ -247,7 +247,10 @@ standat<-list(
 
 if(!file.exists("results/prelim/m3.RDS")){
   if(!file.exists("models/stan_prelim_model.RDS")){  
-    model<-stan_model(model_code = noquote(readLines("https://raw.githubusercontent.com/tbuehrens/WDFW_SOS_Analysis/2022/models/model_mv_v3.stan")))
+    url  <- "https://raw.githubusercontent.com/tbuehrens/WDFW_SOS_Analysis/2022/models/model_mv_v3.stan"
+    dest <- here::here("models/stan_prelim_model.stan")
+    download.file(url, destfile = dest, method = "wininet", mode = "wb")
+    model<-stan_model("models/stan_prelim_model.stan")
     saveRDS(model,"models/stan_prelim_model.RDS")
   }else{
     model<-readRDS("models/stan_prelim_model.RDS")
