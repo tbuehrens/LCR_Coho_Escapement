@@ -84,7 +84,8 @@ GRTSdataprep<-function(GRTSpops,data.dir,db.dir,accdb.name,years, write){
     ########################
     #GRTS_miles (TOTAL)
     #######################
-    dat<- odbc(db.dir=db.dir,accdb.name = accdb.name, dsn = "MS Access Database", sqtable = "qry_GRTS_Location", fields ="*")    
+    dat<- odbc(db.dir=db.dir,accdb.name = accdb.name, dsn = "MS Access Database", sqtable = "qry_GRTS_Location", fields ="*")%>%
+      filter(!is.na(HEADER_STREAM_REACH_Code))    
     dat<-dat[dat$GRTS_Population%in%GRTSdat$GRTS_Population & dat$Return_Yr==yr,]
     dat<-merge(x=dat,y=GRTSdat,by.x="GRTS_Population",by.y="GRTS_Population",all.y=T,all.x=T)
     dat<-dat[order(dat$Order),]
@@ -118,7 +119,8 @@ GRTSdataprep<-function(GRTSpops,data.dir,db.dir,accdb.name,years, write){
     ########################
     #Y,y,J,OC
     #########################
-    dat<- odbc(db.dir=db.dir,accdb.name = accdb.name, dsn = "MS Access Database", sqtable = "qry_Coho_GRTS_NewRedds", fields ="*")   
+    dat<- odbc(db.dir=db.dir,accdb.name = accdb.name, dsn = "MS Access Database", sqtable = "qry_Coho_GRTS_NewRedds", fields ="*")%>%
+      filter(!is.na(HEADER_STREAM_REACH_Code))
     dat<-dat[dat$GRTS_Population%in%GRTSdat$GRTS_Population & dat$Return_Yr==yr,]
     dat<-merge(x=dat,y=GRTSdat,by.x="GRTS_Population",by.y="GRTS_Population",all.y=T,all.x=T)
     dat<-dat[order(dat$Order),]

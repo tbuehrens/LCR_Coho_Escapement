@@ -84,33 +84,33 @@ models.dir<-"models"
 
 #datasets
 frame_file.name<-"Coho_frames_05.02.24_SVP_TB.csv"
-RpF_file.name<-"Coho_RpF_03.06.2025_LB_with_Live_Clips_JL_05272025.csv"
-IMWdata_v2.name<-"IMW_redds_06_19_2025_V2.csv"
-IMWdata.name<-"IMW_redds_06_19_2025.csv"
+RpF_file.name<-"Coho_RpF_06.23.2026_LB_with_Live_Clips_JL.csv"
+IMWdata_v2.name<-"IMW_redds_06_27_2026_V2.csv"
+IMWdata.name<-"IMW_redds_06_27_2026.csv"
 
 
 
 #accdb.name<-"CohoAnalysis_2018_2023.accdb"
 #accdb.name<-"CohoAnalysis_2012_2017.accdb"
-accdb.name<-"TWS_Analysis_Only_v9.2_2019_2024_05292025.accdb"
-traphauldata.name<-"TH_dat_02_19_25_w_nflewisabvdam.csv"
+accdb.name<-"TWS_Analysis_Only_v10.2_2019Through2025_05282026.accdb"
+traphauldata.name<-"TH_dat_02_24_26_w_nflewisabvdam.csv"
 
 
 
 
 # set data summarization params
-years=c(2010:2024)
-GRTSdat.date<-"2025-06-19"
+years=c(2010:2025)
+GRTSdat.date<-"2026-06-27"
 assume_Del_Ost_census<-TRUE
 assume_Coal_Duncan_census<-TRUE
-UpdateGRTSdata<-FALSE
-WriteGRTSdata<-FALSE
+UpdateGRTSdata<-F
+WriteGRTSdata<-F
 
 #model files
 stan_model.file<-"CohoEscapement_Model_2_16_2023_zinb.stan"
 
 #model fitting
-fit_Stan = FALSE
+fit_Stan = TRUE
 
 #HMC params (only applies to stan model; you need to manually tweak for JAGS in Jagsfit function)
 chains=4
@@ -119,7 +119,7 @@ burn=1000
 iter=2000
 control = list(adapt_delta = 0.8, max_treedepth = 12)
 
-results_name<-"Results_2025-06-19"
+results_name<-"Results_2026-06-27"
 ```
 
 # Load & Combine Data for Old JAGs Model
@@ -1691,9 +1691,9 @@ write.csv(Results_Table1,file.path(results.dir,subDir,"Results_Table1.csv"),row.
 ## Main Model Plots
 ```{r}
 #unmarked plot
-p<-ggplot(arrange(transform(UM_ad_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("X50."))) +
+p<-ggplot(arrange(transform(UM_ad_results,Population=factor(Population,levels=poporder)),Population),aes_(x=as.name("Year"), y=as.name("50%"))) +
   geom_line(size=1)+
-  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
+  geom_ribbon(aes_(ymin=as.name("2.5%"),ymax=as.name("97.5%")), alpha=0.25) + 
   facet_wrap(~Population,scales="free") +
   aes(ymin=0) +
   labs(x="Year",y="Spawner Abundance") +
@@ -1728,9 +1728,9 @@ ggsave(file.path(results.dir,subDir,"Abundance.png"),
 )
 
 #phos plot
-p<-ggplot(arrange(transform(pM_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("X50."))) +
+p<-ggplot(arrange(transform(pM_results,Population=factor(Population,levels=poporder)),Population), aes_(x=as.name("Year"), y=as.name("50%"))) +
   geom_line(size=1)+
-  geom_ribbon(aes_(ymin=as.name("X2.5."),ymax=as.name("X97.5.")), alpha=0.25) + 
+  geom_ribbon(aes_(ymin=as.name("2.5%"),ymax=as.name("97.5%")), alpha=0.25) + 
   facet_wrap(~Population) +
   aes(ymin=0,ymax=1) +
   labs(x="Year",y="Proportion Hatchery Origin Spawners") +
